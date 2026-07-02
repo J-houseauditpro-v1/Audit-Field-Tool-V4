@@ -500,8 +500,9 @@ document.addEventListener('DOMContentLoaded', function() {
   initPhotoInput();
   initPhotoViewControls();
   positionPhotoStickyControls();
-  window.addEventListener('resize', positionPhotoStickyControls);
-  window.addEventListener('orientationchange', positionPhotoStickyControls);
+  window.addEventListener('resize', updateTopChromeLayout);
+  window.addEventListener('orientationchange', updateTopChromeLayout);
+  updateTopChromeLayout();
   document.addEventListener('visibilitychange', function() {
     if (document.visibilityState === 'hidden') {
       stopVoiceRec();
@@ -530,6 +531,18 @@ document.addEventListener('DOMContentLoaded', function() {
 }); // end DOMContentLoaded
 
 // ── TABS ─────────────────────────────────────────────────────
+function updateTopChromeLayout() {
+  var header = document.querySelector('.header');
+  var tabnav = document.querySelector('.tabnav');
+  if (!header || !tabnav) return;
+  var headerH = header.offsetHeight;
+  document.documentElement.style.setProperty('--header-height', headerH + 'px');
+  tabnav.style.top = headerH + 'px';
+  var total = headerH + tabnav.offsetHeight;
+  document.documentElement.style.setProperty('--top-chrome-height', total + 'px');
+  positionPhotoStickyControls();
+}
+
 function positionPhotoStickyControls() {
   var el = document.getElementById('photo-controls-sticky');
   var header = document.querySelector('.header');
@@ -2091,11 +2104,32 @@ function loadAudit(id) {
 }
 
 function deleteAudit(id) {
+  var wasCurrent = S.auditId === id;
   setSaved(getSaved().filter(function(a) { return a.id !== id; }));
-  if (S.auditId === id) { S.auditId = null; save(); }
+  if (wasCurrent) {
+    stopVoiceRec();
+    S.name = '';
+    S.address = '';
+    S.date = '';
+    S.year = '';
+    S.sqft = '';
+    S.coop = '';
+    S.dump = '';
+    S.photos = [];
+    S.auditId = null;
+    S.tcSignature = null;
+    clearTCSignature();
+    save();
+    fillFields();
+    renderHeader();
+    renderVoiceDump();
+    renderPhotoList();
+  }
   deletePhotosByAuditId(id, function() {
     deleteLegacyFiles(id, function() {
       renderAuditsList();
+      var exportPanel = document.getElementById('tab-export');
+      if (exportPanel && exportPanel.style.display === 'block') renderWeeklyBatches();
       toast('Audit deleted');
     });
   });
