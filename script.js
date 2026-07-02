@@ -205,10 +205,15 @@ function getCategoryLabel(id) {
 // ── INDEXEDDB PHOTO STORAGE ───────────────────────────────────
 var photoDB = null;
 var photoDBReady = false;
+// In-memory cache for audit records — loaded from IDB at startup.
+// getSaved()/setSaved() operate on this array synchronously, while IDB is
+// updated asynchronously (fire-and-forget). This means zero changes needed
+// at any call site that reads or writes the saved-audits list.
+var _savedAudits = [];
 
 function initPhotoDB(callback) {
   console.log('[PhotoDB] Opening IndexedDB...');
-  var request = indexedDB.open('AuditFieldToolDB', 2);
+  var request = indexedDB.open('AuditFieldToolDB', 3);
 
   request.onupgradeneeded = function(e) {
     var db = e.target.result;
@@ -223,6 +228,12 @@ function initPhotoDB(callback) {
     if (!db.objectStoreNames.contains('legacyFiles')) {
       db.createObjectStore('legacyFiles', { keyPath: 'auditId' });
       console.log('[PhotoDB] Created legacyFiles object store');
+    }
+    // Full audit records (text + photo metadata + interpreted output).
+    // Photos are still stored separately in the 'photos' store.
+    if (!db.objectStoreNames.contains('audits')) {
+      db.createObjectStore('audits', { keyPath: 'id' });
+      console.log('[PhotoDB] Created audits object store');
     }
   };
 
@@ -397,10 +408,41 @@ function save() {
   }
 }
 function getSaved() {
-  try { return JSON.parse(localStorage.getItem('aft_saved') || '[]'); } catch(e) { return []; }
+  return _savedAudits;
 }
 function setSaved(arr) {
-  try { localStorage.setItem('aft_saved', JSON.stringify(arr)); } catch(e) {}
+  _savedAudits = arr;
+  // Persist to IndexedDB asynchronously (fire-and-forget).
+  // Clear + rewrite is safe for hundreds of records; each record is ~10-50 KB.
+  if (!photoDB || !photoDBReady) return;
+  try {
+    var tx = photoDB.transaction(['audits'], 'readwrite');
+    var store = tx.objectStore('audits');
+    store.clear();
+    arr.forEach(function(rec) { try { store.put(rec); } catch(e) {} });
+  } catch(e) { console.warn('[AuditDB] setSaved IDB write failed:', e); }
+}
+
+// Load all audit records from IDB into the in-memory cache.
+// Must be called once at startup before any getSaved/setSaved calls.
+function loadAuditsFromIDB(callback) {
+  if (!photoDB || !photoDBReady) { if (callback) callback(); return; }
+  try {
+    var tx = photoDB.transaction(['audits'], 'readonly');
+    var store = tx.objectStore('audits');
+    var req = store.getAll();
+    req.onsuccess = function() {
+      var results = req.result || [];
+      // Newest first (matches previous localStorage sort)
+      results.sort(function(a, b) {
+        return (b.savedAt || '').localeCompare(a.savedAt || '');
+      });
+      _savedAudits = results;
+      console.log('[AuditDB] Loaded ' + results.length + ' audits from IndexedDB');
+      if (callback) callback();
+    };
+    req.onerror = function() { console.warn('[AuditDB] getAll failed'); if (callback) callback(); };
+  } catch(e) { console.warn('[AuditDB] loadAuditsFromIDB failed:', e); if (callback) callback(); }
 }
 
 // ── TOAST ────────────────────────────────────────────────────
@@ -428,6 +470,21 @@ function showAutosaveIndicator() {
 // ── INIT ─────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', function() {
   initPhotoDB(function() {
+  loadAuditsFromIDB(function() {
+  // One-time migration: if localStorage has aft_saved data and IDB is empty,
+  // pull it into the cache and write to IDB, then clear the localStorage key.
+  try {
+    var lsData = localStorage.getItem('aft_saved');
+    if (lsData) {
+      var lsArr = JSON.parse(lsData);
+      if (Array.isArray(lsArr) && lsArr.length > 0 && _savedAudits.length === 0) {
+        _savedAudits = lsArr;
+        setSaved(_savedAudits);
+        console.log('[AuditDB] Migrated ' + lsArr.length + ' audits from localStorage to IndexedDB');
+      }
+      localStorage.removeItem('aft_saved');
+    }
+  } catch(e) { console.warn('[AuditDB] localStorage migration failed:', e); }
   console.log('[PhotoDB] App init starting — IndexedDB is ready');
   load();
   fillFields();
@@ -456,6 +513,7 @@ document.addEventListener('DOMContentLoaded', function() {
   initPhotoMarkup();
   initAuditsTab();
   initLegacyImport();
+  initV2V3Import();
   initExportTab();
   initAuditorSettings();
   var btnResetAudit = document.getElementById('btn-reset-audit');
@@ -467,8 +525,9 @@ document.addEventListener('DOMContentLoaded', function() {
   initTCTab();
   renderTCInfo();
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
-  });
-});
+  }); // end loadAuditsFromIDB
+  }); // end initPhotoDB
+}); // end DOMContentLoaded
 
 // ── TABS ─────────────────────────────────────────────────────
 function positionPhotoStickyControls() {
@@ -489,8 +548,12 @@ function initTabs() {
       btn.classList.add('active');
       document.getElementById('tab-' + btn.dataset.tab).style.display = 'block';
       if (btn.dataset.tab === 'export') renderWeeklyBatches();
+      if (btn.dataset.tab === 'interpret' && typeof initInterpretTab === 'function') initInterpretTab();
+      if (btn.dataset.tab === 'customers' && typeof initCustomersTab === 'function') initCustomersTab();
       if (btn.dataset.tab === 'more') {
         initAftMoreTab();
+        if (typeof refreshInterpretSettingsUI === 'function') refreshInterpretSettingsUI();
+        if (typeof initGoogleSheetsSettings === 'function') initGoogleSheetsSettings();
         var auditorInput = document.getElementById('auditor-name-input');
         if (auditorInput) {
           auditorInput.value = getStoredAuditorName();
@@ -1899,6 +1962,57 @@ function initLegacyImport() {
   });
 }
 
+// ── V2/V3 BULK IMPORT ────────────────────────────────────────────
+// Reads a JSON file that is an aft_saved array exported from V2 or V3.
+// Merges records into the current saved list (deduplicates by id).
+// Photos are not included — they flag photosNotImported:true.
+function importV2V3Audits(file) {
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    var arr;
+    try { arr = JSON.parse(e.target.result); }
+    catch(ex) { toast('Could not parse JSON: ' + ex.message); return; }
+    if (!Array.isArray(arr)) {
+      // Might be wrapped: { saved: [...] } or { audits: [...] }
+      arr = arr.saved || arr.audits || arr.aft_saved || null;
+    }
+    if (!Array.isArray(arr) || !arr.length) { toast('No audit records found in file'); return; }
+    var existing = getSaved();
+    var existingIds = {};
+    existing.forEach(function(r) { existingIds[r.id] = true; });
+    var added = 0;
+    arr.forEach(function(rec) {
+      if (!rec || !rec.id) return;
+      if (existingIds[rec.id]) return; // skip duplicates
+      // Normalize customer object
+      rec.customer = rec.customer || {};
+      rec.voiceDump = rec.voiceDump || rec.dump || '';
+      rec.photos = rec.photos || [];
+      rec.savedAt = rec.savedAt || new Date().toISOString();
+      rec.source = rec.source || 'V2V3Import';
+      if (rec.photos.length) rec.photosNotImported = true; // photos can't transfer via JSON
+      existing.push(rec);
+      added++;
+    });
+    setSaved(existing);
+    renderAuditsList();
+    toast('Imported ' + added + ' audit' + (added !== 1 ? 's' : '') + ' from ' + file.name);
+  };
+  reader.onerror = function() { toast('Could not read file'); };
+  reader.readAsText(file);
+}
+
+function initV2V3Import() {
+  var btn = document.getElementById('v2v3-import-btn');
+  var input = document.getElementById('v2v3-import-input');
+  if (!btn || !input) return;
+  input.addEventListener('change', function() {
+    if (input.files[0]) importV2V3Audits(input.files[0]);
+    input.value = '';
+  });
+  btn.addEventListener('click', function() { input.click(); });
+}
+
 // Silent checkpoint autosave. Fires only at natural pause points (tab switch,
 // photo added/deleted, recording stopped, note screen closed, signature saved,
 // app backgrounded) — never on a timer, never mid-action. Pushes the same
@@ -1938,6 +2052,16 @@ function loadAudit(id) {
   S.photos = rec.photos || [];
   S.auditId = rec.id;
   S.tcSignature = rec.tcSignature || null;
+  // Restore interpreted output to Interpret tab if present
+  if (typeof interpretLastParsed !== 'undefined') {
+    if (rec.interpretedOutput && rec.interpretedOutput.fields) {
+      interpretLastParsed = rec.interpretedOutput;
+      interpretLastMeta = (rec.interpretedOutput.interpretMeta) || null;
+    } else {
+      interpretLastParsed = null;
+      interpretLastMeta = null;
+    }
+  }
   save();
   fillFields();
   renderHeader();
@@ -1982,14 +2106,16 @@ function renderAuditsList() {
       var metaLine = a.legacyImport
         ? (date + ' · ' + words + ' words · 📥 legacy import')
         : (date + ' · ' + words + ' words · ' + photos + ' photos');
+      var interpBadge = a.interpretedOutput ? '<span class="interp-badge" title="Interpreted">⚡</span>' : '';
       return '<div class="week-audit-row' + (a.id === S.auditId ? ' is-current' : '') + '">' +
         '<div class="week-audit-info">' +
-          '<div class="week-audit-name">' + escapeHtml(name) + '</div>' +
+          '<div class="week-audit-name">' + escapeHtml(name) + interpBadge + '</div>' +
           '<div class="week-audit-meta">' + metaLine + '</div>' +
         '</div>' +
         '<div class="week-audit-btns">' +
           '<button class="btn-xs load-btn" data-id="' + a.id + '">Load</button>' +
           '<button class="btn-xs photos-btn" data-id="' + a.id + '">📷</button>' +
+          '<button class="btn-xs interp-view-btn" data-id="' + a.id + '"' + (a.interpretedOutput ? '' : ' style="display:none"') + ' title="View interpretation">⚡</button>' +
           '<button class="btn-xs btn-danger-sm del-btn" data-id="' + a.id + '">🗑</button>' +
         '</div>' +
       '</div>';
@@ -2017,6 +2143,11 @@ function renderAuditsList() {
   list.querySelectorAll('.del-btn').forEach(function(btn) {
     btn.addEventListener('click', function() {
       if (confirm('Delete this saved audit?')) deleteAudit(btn.dataset.id);
+    });
+  });
+  list.querySelectorAll('.interp-view-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      if (typeof openInterpArchive === 'function') openInterpArchive(btn.dataset.id);
     });
   });
 }

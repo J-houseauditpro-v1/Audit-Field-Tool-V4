@@ -22,6 +22,10 @@
 
 <!-- TAB NAV -->
 <nav class="tabnav">
+  <button class="tab" data-tab="customers">
+    <span class="tab-icon">👥</span>
+    <span class="tab-label">Customers</span>
+  </button>
   <button class="tab active" data-tab="voice">
     <span class="tab-icon">📋</span>
     <span class="tab-label">Audit Data</span>
@@ -42,11 +46,35 @@
     <span class="tab-icon">📤</span>
     <span class="tab-label">Export</span>
   </button>
+  <button class="tab" data-tab="interpret">
+    <span class="tab-icon">⚡</span>
+    <span class="tab-label">Interpret</span>
+  </button>
   <button class="tab" data-tab="more">
     <span class="tab-icon">⋯</span>
     <span class="tab-label">More</span>
   </button>
 </nav>
+
+<!-- ======================== CUSTOMERS TAB ======================== -->
+<div id="tab-customers" class="tabpanel" style="display:none">
+
+  <section class="card">
+    <div class="row-between" style="margin-bottom:10px;">
+      <div class="card-title" style="margin-bottom:0;">📋 Customers</div>
+      <button class="btn-gold btn-sm" id="customers-refresh-btn">🔄 Refresh</button>
+    </div>
+    <div class="card-sub">From Google Sheets. Tap Start Audit to pre-fill customer info.</div>
+    <input class="field" id="customers-search" type="search" placeholder="Search by name, address…" style="width:100%;margin-top:8px;">
+    <div id="customers-fetch-status" style="font-size:0.8rem;margin-top:6px;display:none;"></div>
+    <div id="customers-cache-note" class="card-sub" style="margin-top:4px;display:none;"></div>
+  </section>
+
+  <div id="customers-list">
+    <div class="empty-msg">No customers yet — tap Refresh to fetch from Google Sheets</div>
+  </div>
+
+</div>
 
 <!-- ======================== T&C TAB ======================== -->
 <div id="tab-tc" class="tabpanel" style="display:none">
@@ -241,8 +269,15 @@
   </section>
 
   <section class="card">
+    <div class="card-title">⬆️ Import V2/V3 Audits</div>
+    <div class="card-sub">Import a bulk JSON export from Audit Field Tool V2 or V3. Select the <code>aft_saved</code> JSON file downloaded from the old app. Photos are noted as not imported (they live in the old app's storage).</div>
+    <input type="file" id="v2v3-import-input" accept=".json" style="display:none;">
+    <button class="btn-gold btn-full" id="v2v3-import-btn" style="margin-top:8px;">📂 Select V2/V3 Export JSON</button>
+  </section>
+
+  <section class="card">
     <div class="card-title">📥 Import Legacy Audit</div>
-    <div class="card-sub">Select the original audit JSON from a pre-bundle export. It will be added to Saved Audits for reference.</div>
+    <div class="card-sub">Import a single pre-bundle audit JSON. It will be added to Saved Audits for reference.</div>
     <div class="field-row">
       <label class="btn-outline photo-label" style="flex:1;text-align:center;">
         📄 JSON (required)
@@ -264,6 +299,76 @@
 
 </div>
 
+<!-- ======================== INTERPRET TAB ======================== -->
+<div id="tab-interpret" class="tabpanel" style="display:none">
+
+  <section class="card">
+    <div class="card-title">⚡ Audit Interpreter</div>
+    <div class="card-sub">Auto-populated from current audit. Tap Interpret to send to Claude.</div>
+    <div class="tc-info-grid">
+      <div class="tc-info-row"><span class="tc-info-label">Name</span><span class="tc-info-value" id="interp-name-display">—</span></div>
+      <div class="tc-info-row"><span class="tc-info-label">Address</span><span class="tc-info-value" id="interp-address-display">—</span></div>
+      <div class="tc-info-row"><span class="tc-info-label">Date</span><span class="tc-info-value" id="interp-date-display">—</span></div>
+      <div class="tc-info-row"><span class="tc-info-label">Co-op</span><span class="tc-info-value" id="interp-coop-display">—</span></div>
+      <div class="tc-info-row"><span class="tc-info-label">Year Built</span><span class="tc-info-value" id="interp-year-display">—</span></div>
+      <div class="tc-info-row"><span class="tc-info-label">Sq Ft</span><span class="tc-info-value" id="interp-sqft-display">—</span></div>
+    </div>
+    <div style="margin-top:10px;">
+      <div class="card-sub" style="margin-bottom:4px;">Audit Notes Preview</div>
+      <div id="interp-dump-preview" class="interp-dump-preview">No audit data loaded.</div>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="interp-action-row">
+      <span id="interp-model-badge" class="interp-model-badge">claude-sonnet-4-5</span>
+      <button class="btn-gold btn-full" id="interp-run-btn">⚡ Interpret Audit</button>
+    </div>
+    <div id="interp-token-usage" class="interp-token-usage" style="display:none;"></div>
+    <div id="interp-no-key-warn" class="tc-warn" style="display:none;">⚠️ No API key set — add it in More → Interpret Settings.</div>
+    <div id="interp-no-dump-warn" class="tc-warn" style="display:none;">⚠️ No audit notes in current audit — add data in Audit Data tab first.</div>
+  </section>
+
+  <section class="card" id="interp-flags-card" style="display:none;">
+    <div class="card-title">⚠️ Interpreter Notes</div>
+    <div id="interp-flags-content" class="interp-flags"></div>
+  </section>
+
+  <section class="card" id="interp-clar-card" style="display:none;">
+    <div class="card-title">Clarifications Needed</div>
+    <div class="card-sub">Tap an answer to apply it to the field output.</div>
+    <div id="interp-clar-content"></div>
+  </section>
+
+  <section class="card" id="interp-output-card" style="display:none;">
+    <div class="interp-output-header">
+      <div>
+        <div class="card-title" style="margin-bottom:2px;">Field Output</div>
+        <div class="card-sub">Copy button copies value · ✏️ corrects value · Flag highlights text.</div>
+      </div>
+      <button type="button" class="btn-sm" id="interp-flag-start-btn">⚑ Flag</button>
+    </div>
+    <div id="interp-flag-toolbar" class="interp-flag-toolbar" style="display:none;">
+      <span class="interp-flag-hint">Select any text in the output below, then tap Confirm</span>
+      <div class="interp-flag-actions">
+        <button type="button" class="btn-sm" id="interp-flag-cancel-btn">Cancel</button>
+        <button type="button" class="btn-gold btn-sm" id="interp-flag-confirm-btn">Confirm Selection</button>
+      </div>
+    </div>
+    <div id="interp-output-content"></div>
+  </section>
+
+  <section class="card" id="interp-save-card" style="display:none;">
+    <button class="btn-gold btn-full" id="interp-save-btn">💾 Save Interpretation to Audit</button>
+    <div style="margin-top:10px;border-top:1px solid var(--border);padding-top:10px;">
+      <div class="card-sub" style="margin-bottom:6px;">After reviewing and correcting all fields above, submit to JotForm:</div>
+      <button class="btn-outline btn-full" id="interp-jotform-submit-btn">📤 Submit to JotForm</button>
+      <div id="interp-jotform-status" style="font-size:0.82rem;margin-top:6px;display:none;"></div>
+    </div>
+  </section>
+
+</div>
+
 <!-- ======================== MORE TAB (Contacts + Notes) ======================== -->
 <div id="tab-more" class="tabpanel" style="display:none">
 
@@ -273,6 +378,83 @@
     <input class="field more-field-full" id="auditor-name-input" type="text" placeholder="Optional — your first name" autocomplete="off" maxlength="32">
     <div class="card-sub" id="auditor-name-preview" style="margin-top:8px;"></div>
     <button class="btn-gold btn-full" id="auditor-name-save" style="margin-top:8px;">Save Name</button>
+  </section>
+
+  <section class="card more-card">
+    <div class="card-title">⚡ Interpret Settings</div>
+    <div class="card-sub">Claude API key and model for the Interpret tab.</div>
+
+    <div class="card-sub" style="margin-top:10px;">API Key</div>
+    <input class="field more-field-full" id="interp-api-key-input" type="password" placeholder="sk-ant-..." autocomplete="off">
+    <div style="display:flex;gap:8px;margin-top:8px;">
+      <button class="btn-gold btn-full" id="interp-api-key-save">Save Key</button>
+      <button class="btn-sm" id="interp-test-btn">Test</button>
+    </div>
+    <div id="interp-test-result" style="font-size:0.8rem;margin-top:6px;display:none;"></div>
+
+    <div class="card-sub" style="margin-top:14px;">Model</div>
+    <select class="field more-field-full" id="interp-model-select">
+      <option value="claude-sonnet-5">claude-sonnet-5 (recommended)</option>
+      <option value="claude-sonnet-4-6">claude-sonnet-4-6</option>
+      <option value="claude-haiku-4-5-20251001">claude-haiku-4-5 (fast / test)</option>
+    </select>
+
+    <div class="card-sub" style="margin-top:14px;">Thinking Effort</div>
+    <select class="field more-field-full" id="interp-effort-select">
+      <option value="">Off (no thinking, faster)</option>
+      <option value="low">Low</option>
+      <option value="medium" selected>Medium</option>
+      <option value="high">High</option>
+      <option value="max">Max</option>
+    </select>
+
+    <div class="card-sub" style="margin-top:14px;">Max Tokens</div>
+    <select class="field more-field-full" id="interp-max-tokens-select">
+      <option value="8192">8192</option>
+      <option value="12288">12288</option>
+      <option value="16384" selected>16384</option>
+    </select>
+    <button class="btn-gold btn-full" id="interp-model-save" style="margin-top:8px;">Save Model Settings</button>
+
+    <div class="card-sub" style="margin-top:14px;">Knowledge Doc <span style="color:var(--sub);font-size:0.75rem;">(edit to add learned rules)</span></div>
+    <textarea class="voice-area more-field-full" id="interp-knowledge-textarea" style="height:180px;font-size:0.72rem;" placeholder="Loading..."></textarea>
+    <div style="display:flex;gap:8px;margin-top:8px;">
+      <button class="btn-gold btn-full" id="interp-knowledge-save">Save Knowledge Doc</button>
+      <button class="btn-sm" id="interp-knowledge-reset">Reset</button>
+    </div>
+
+    <div style="border-top:1px solid var(--border);margin-top:14px;padding-top:14px;">
+      <div class="card-sub" style="font-weight:600;margin-bottom:4px;">JotForm Integration</div>
+      <div class="card-sub">Form ID and API key for one-tap submission from the Interpret tab.</div>
+      <div class="card-sub" style="margin-top:10px;">Form ID</div>
+      <input class="field more-field-full" id="jotform-form-id-input" type="text" placeholder="e.g. 123456789" autocomplete="off">
+      <div class="card-sub" style="margin-top:8px;">API Key</div>
+      <input class="field more-field-full" id="jotform-api-key-input" type="password" placeholder="Your JotForm API key" autocomplete="off">
+      <div class="card-sub" style="margin-top:8px;">Field Mapping <span style="color:var(--sub);font-size:0.75rem;">(JSON: {"Field Name": "q5_questionId"})</span></div>
+      <textarea class="voice-area more-field-full" id="jotform-field-map-textarea" style="height:120px;font-size:0.72rem;" placeholder='{\n  "Member Name - First": "q3_first",\n  "Address": "q4_address"\n}'></textarea>
+      <button class="btn-gold btn-full" id="jotform-settings-save" style="margin-top:8px;">Save JotForm Settings</button>
+    </div>
+  </section>
+
+  <section class="card more-card">
+    <div class="card-title">📊 Google Sheets Settings</div>
+    <div class="card-sub">Configure the Customers tab to pull from your Google Sheets spreadsheet.</div>
+    <div class="card-sub" style="margin-top:10px;">Spreadsheet ID</div>
+    <input class="field more-field-full" id="gs-sheet-id-input" type="text" placeholder="From the sheet URL" autocomplete="off">
+    <div class="card-sub" style="margin-top:8px;">Range</div>
+    <input class="field more-field-full" id="gs-range-input" type="text" placeholder="Sheet1!A1:Z200" autocomplete="off" value="Sheet1!A1:Z200">
+    <div class="card-sub" style="margin-top:8px;">API Key</div>
+    <input class="field more-field-full" id="gs-api-key-input" type="password" placeholder="Google Cloud API key" autocomplete="off">
+    <div class="card-sub" style="margin-top:10px;">Column Mapping <span style="color:var(--sub);font-size:0.75rem;">(0-based column index)</span></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 12px;margin-top:4px;">
+      <div><div class="card-sub" style="font-size:0.72rem;">Name col</div><input class="field" id="gs-col-name" type="number" min="0" placeholder="0" style="width:100%;"></div>
+      <div><div class="card-sub" style="font-size:0.72rem;">Address col</div><input class="field" id="gs-col-address" type="number" min="0" placeholder="1" style="width:100%;"></div>
+      <div><div class="card-sub" style="font-size:0.72rem;">Date col</div><input class="field" id="gs-col-date" type="number" min="0" placeholder="2" style="width:100%;"></div>
+      <div><div class="card-sub" style="font-size:0.72rem;">Co-op col</div><input class="field" id="gs-col-coop" type="number" min="0" placeholder="3" style="width:100%;"></div>
+      <div><div class="card-sub" style="font-size:0.72rem;">Year Built col</div><input class="field" id="gs-col-year" type="number" min="0" placeholder="4" style="width:100%;"></div>
+      <div><div class="card-sub" style="font-size:0.72rem;">Sq Ft col</div><input class="field" id="gs-col-sqft" type="number" min="0" placeholder="5" style="width:100%;"></div>
+    </div>
+    <button class="btn-gold btn-full" id="gs-settings-save" style="margin-top:12px;">Save Google Sheets Settings</button>
   </section>
 
   <div class="more-subnav">
@@ -441,6 +623,8 @@
 <script src="idb-contacts-notes.js"></script>
 <script src="contacts-tab.js"></script>
 <script src="notes-tab.js"></script>
+<script src="interpret-tab.js"></script>
+<script src="customers-tab.js"></script>
 <script src="script.js"></script>
 </body>
 </html>

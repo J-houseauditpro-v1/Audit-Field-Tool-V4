@@ -1370,3 +1370,284 @@ body.modal-open {
   #more-contacts-panel,
   #more-notes-panel { padding: 6px 8px 10px; }
 }
+
+/* ============================================================
+   INTERPRET TAB
+   ============================================================ */
+
+.interp-action-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.interp-model-badge {
+  flex-shrink: 0;
+  font-size: 0.68rem;
+  color: var(--sub);
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 3px 7px;
+  white-space: nowrap;
+}
+.interp-token-usage {
+  font-size: 0.75rem;
+  color: var(--sub);
+  margin-top: 8px;
+}
+.interp-dump-preview {
+  font-size: 0.78rem;
+  color: var(--text);
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 10px;
+  line-height: 1.45;
+  max-height: 5rem;
+  overflow: hidden;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.interp-dump-empty { color: var(--sub); font-style: italic; }
+
+/* Page group */
+.interpret-page-group {
+  margin-bottom: 14px;
+}
+.interpret-page-group:last-child { margin-bottom: 0; }
+.interpret-page-title {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--gold);
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid rgba(201,168,76,0.25);
+}
+
+/* Field rows */
+.interpret-field-row {
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border);
+}
+.interpret-field-row:last-child { border-bottom: none; }
+.interpret-field-label {
+  font-size: 0.68rem;
+  color: var(--sub);
+  margin-bottom: 3px;
+  line-height: 1.2;
+}
+.interpret-field-value-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+.interpret-field-value {
+  flex: 1;
+  font-size: 0.85rem;
+  color: var(--text);
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+/* Copy button */
+.interpret-copy-btn {
+  flex-shrink: 0;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 3px 6px;
+  font-size: 0.72rem;
+  cursor: pointer;
+  color: var(--sub);
+  line-height: 1;
+  transition: border-color 0.15s, color 0.15s;
+}
+.interpret-copy-btn:active { background: rgba(201,168,76,0.1); }
+.interpret-copy-btn.copied {
+  border-color: #4caf50;
+  color: #4caf50;
+}
+
+/* Flags box */
+.interp-flags {
+  font-size: 0.82rem;
+  color: #e8a700;
+  background: rgba(232,167,0,0.08);
+  border: 1px solid rgba(232,167,0,0.3);
+  border-radius: 6px;
+  padding: 10px 12px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* Clarification items */
+.interpret-clar-item {
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+.interpret-clar-item:last-child { border-bottom: none; }
+.interpret-clar-question {
+  font-size: 0.85rem;
+  color: var(--text);
+  margin: 0 0 4px;
+  line-height: 1.4;
+}
+.interpret-clar-field-ref {
+  font-size: 0.7rem;
+  color: var(--sub);
+  margin: 0 0 8px;
+}
+.interpret-clar-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.interpret-option-btn {
+  white-space: normal;
+  text-align: left;
+  line-height: 1.35;
+  min-width: 0;
+}
+.interpret-clar-resolved {
+  font-size: 0.78rem;
+  color: #4caf50;
+  margin-top: 6px;
+}
+
+/* Output card header */
+.interp-output-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.interp-output-header .card-title { margin-bottom: 0; }
+
+/* Edit button */
+.interpret-edit-btn {
+  flex-shrink: 0;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 3px 6px;
+  font-size: 0.72rem;
+  cursor: pointer;
+  color: var(--sub);
+  line-height: 1;
+  transition: border-color 0.15s, color 0.15s;
+}
+.interpret-edit-btn:active { background: rgba(201,168,76,0.1); }
+
+/* Inline editor */
+.interpret-inline-editor {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+}
+.interpret-inline-input {
+  flex: 1;
+  min-width: 0;
+  background: var(--bg3);
+  border: 1px solid var(--gold);
+  border-radius: 5px;
+  padding: 4px 8px;
+  font-size: 0.85rem;
+  color: var(--text);
+  outline: none;
+}
+
+/* Flag toolbar */
+.interp-flag-toolbar {
+  flex-direction: column;
+  gap: 8px;
+  background: rgba(232,167,0,0.08);
+  border: 1px solid rgba(232,167,0,0.4);
+  border-radius: 7px;
+  padding: 8px 10px;
+  margin-bottom: 10px;
+}
+.interp-flag-hint {
+  font-size: 0.78rem;
+  color: #e8a700;
+  line-height: 1.4;
+}
+.interp-flag-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+/* Allow text selection when flag mode is active */
+#interp-output-content.interp-flag-mode {
+  user-select: text;
+  -webkit-user-select: text;
+  cursor: text;
+}
+#interp-output-content.interp-flag-mode .interpret-copy-btn,
+#interp-output-content.interp-flag-mode .interpret-edit-btn {
+  pointer-events: none;
+  opacity: 0.4;
+}
+
+/* ── INTERP ARCHIVE BADGE ─────────────────────────── */
+.interp-badge {
+  display: inline-block;
+  font-size: 0.68rem;
+  color: #e8a700;
+  margin-left: 4px;
+  vertical-align: middle;
+  line-height: 1;
+}
+.btn-xs.interp-view-btn {
+  border-color: #e8a700;
+  color: #e8a700;
+  font-size: 0.78rem;
+  padding: 3px 6px;
+}
+.btn-xs.interp-view-btn:active {
+  background: rgba(232,167,0,0.15);
+}
+
+/* ── CUSTOMERS TAB ────────────────────────────────── */
+.customer-card {
+  background: var(--card-bg, #1c1c1e);
+  border: 1px solid var(--border, #333);
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin: 0 12px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.customer-card-name {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--gold, #e8a700);
+}
+.customer-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  font-size: 0.8rem;
+  color: var(--sub, #888);
+}
+.customer-card-date {
+  color: var(--sub, #888);
+}
+.customer-card-coop {
+  background: rgba(232,167,0,0.12);
+  color: #e8a700;
+  border-radius: 4px;
+  padding: 1px 5px;
+  font-size: 0.74rem;
+}
+.customer-card .customer-start-btn {
+  align-self: flex-end;
+  margin-top: 4px;
+}
