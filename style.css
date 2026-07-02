@@ -24,6 +24,10 @@ body {
 
 /* HEADER */
 .header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
   background: var(--bg2);
   border-bottom: 2px solid var(--gold);
   padding: 14px 16px 10px;
@@ -31,8 +35,27 @@ body {
   top: 0;
   z-index: 100;
 }
+.header-main { flex: 1; min-width: 0; }
 .header-title { font-size: 1.1rem; font-weight: 700; color: var(--gold); }
 .header-sub { font-size: 0.78rem; color: var(--sub); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.header-settings-btn {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  margin: -6px -8px -6px 0;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.header-settings-btn:active { background: var(--bg3); }
+.header-settings-btn.active { background: var(--bg3); }
+.header-settings-icon { font-size: 1.35rem; line-height: 1; }
 
 /* TAB NAV */
 .tabnav {
@@ -45,6 +68,7 @@ body {
 }
 .tab {
   flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -62,7 +86,15 @@ body {
 }
 .tab.active { color: var(--gold); border-bottom-color: var(--gold); }
 .tab-icon { font-size: 1.05rem; line-height: 1; }
-.tab-label { font-size: 0.78rem; line-height: 1.1; text-align: center; }
+.tab-label {
+  max-width: 100%;
+  font-size: 0.78rem;
+  line-height: 1.1;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 
 /* TAB PANELS */
 .tabpanel { padding: 12px; }
@@ -1365,10 +1397,18 @@ body.modal-open {
   padding: 12px 4px;
 }
 @media (max-width: 420px) {
+  .tab { padding: 8px 2px; }
+  .tab-icon { font-size: 1rem; }
+  .tab-label { font-size: 0.7rem; }
   .filter-chip { font-size: 0.68rem; padding: 3px 8px; }
   .more-pill { font-size: 0.76rem; padding: 7px 8px; }
   #more-contacts-panel,
   #more-notes-panel { padding: 6px 8px 10px; }
+}
+@media (max-width: 360px) {
+  .tab { padding: 10px 2px; }
+  .tab-icon { font-size: 1.15rem; }
+  .tab-label { display: none; }
 }
 
 /* ============================================================

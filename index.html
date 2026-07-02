@@ -16,8 +16,13 @@
 
 <!-- HEADER -->
 <header class="header">
-  <div class="header-title">Audit Field Tool</div>
-  <div class="header-sub" id="header-sub">No customer loaded</div>
+  <div class="header-main">
+    <div class="header-title">Audit Field Tool</div>
+    <div class="header-sub" id="header-sub">No customer loaded</div>
+  </div>
+  <button type="button" class="header-settings-btn" id="header-settings-btn" aria-label="Settings">
+    <span class="header-settings-icon" aria-hidden="true">⚙️</span>
+  </button>
 </header>
 
 <!-- TAB NAV -->
@@ -42,17 +47,13 @@
     <span class="tab-icon">📁</span>
     <span class="tab-label">Audits</span>
   </button>
-  <button class="tab" data-tab="export">
-    <span class="tab-icon">📤</span>
-    <span class="tab-label">Export</span>
-  </button>
   <button class="tab" data-tab="interpret">
     <span class="tab-icon">⚡</span>
     <span class="tab-label">Interpret</span>
   </button>
-  <button class="tab" data-tab="more">
-    <span class="tab-icon">⋯</span>
-    <span class="tab-label">More</span>
+  <button class="tab" data-tab="export">
+    <span class="tab-icon">📤</span>
+    <span class="tab-label">Export</span>
   </button>
 </nav>
 
