@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="AuditField">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>Audit Field Tool</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="header">
+  <div class="header-title">Audit Field Tool</div>
+  <div class="header-sub" id="header-sub">No customer loaded</div>
+</header>
+
+<!-- TAB NAV -->
+<nav class="tabnav">
+  <button class="tab active" data-tab="voice">
+    <span class="tab-icon">📋</span>
+    <span class="tab-label">Audit Data</span>
+  </button>
+  <button class="tab" data-tab="tc">
+    <span class="tab-icon">✍️</span>
+    <span class="tab-label">T&amp;C</span>
+  </button>
+  <button class="tab" data-tab="photos">
+    <span class="tab-icon">📷</span>
+    <span class="tab-label">Photos</span>
+  </button>
+  <button class="tab" data-tab="audits">
+    <span class="tab-icon">📁</span>
+    <span class="tab-label">Audits</span>
+  </button>
+  <button class="tab" data-tab="export">
+    <span class="tab-icon">📤</span>
+    <span class="tab-label">Export</span>
+  </button>
+  <button class="tab" data-tab="more">
+    <span class="tab-icon">⋯</span>
+    <span class="tab-label">More</span>
+  </button>
+</nav>
+
+<!-- ======================== T&C TAB ======================== -->
+<div id="tab-tc" class="tabpanel" style="display:none">
+
+  <section class="card">
+    <div class="card-title">📋 Terms & Conditions — CHESS Program</div>
+    <div class="card-sub">Customer info auto-populated from Audit Data tab. Collect signature below then generate PDF.</div>
+    <div class="tc-info-grid">
+      <div class="tc-info-row">
+        <span class="tc-info-label">Name</span>
+        <span class="tc-info-value" id="tc-name-display">—</span>
+      </div>
+      <div class="tc-info-row">
+        <span class="tc-info-label">Address</span>
+        <span class="tc-info-value" id="tc-address-display">—</span>
+      </div>
+      <div class="tc-info-row">
+        <span class="tc-info-label">Date</span>
+        <span class="tc-info-value" id="tc-date-display">—</span>
+      </div>
+    </div>
+    <div id="tc-no-customer-msg" class="tc-warn" style="display:none;">
+      ⚠️ No customer loaded — go to Audit Data tab and fill in customer info first.
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="card-title">Customer Signature</div>
+    <div class="card-sub">Tap the button below to open the signature screen. Hand phone to customer to sign.</div>
+    <div id="tc-sig-preview" class="sig-preview-box" style="display:none;">
+      <img id="tc-sig-preview-img" src="" alt="Signature preview" style="max-width:100%; border-radius:6px;">
+      <div style="font-size:0.78rem; color:#4caf50; margin-top:6px;">✓ Signature captured</div>
+    </div>
+    <div id="tc-no-sig-msg" class="card-sub" style="color:#666;">No signature yet</div>
+    <div style="display:flex; gap:10px; margin-top:12px;">
+      <button class="btn-gold btn-full" id="tc-open-sig-btn">✍️ Open Signature Screen</button>
+      <button class="btn-sm" id="tc-sig-clear" style="display:none;">Clear</button>
+    </div>
+  </section>
+
+  <!-- FULL SCREEN SIGNATURE OVERLAY -->
+  <div id="sig-overlay" class="sig-overlay" style="display:none;">
+    <div class="sig-overlay-inner">
+      <div class="sig-overlay-title">Customer Signature</div>
+      <div class="sig-overlay-sub">Sign with your finger in the white box below</div>
+      <div class="sig-canvas-wrapper">
+        <canvas id="tc-sig-canvas" class="sig-canvas-full"></canvas>
+      </div>
+      <div class="sig-overlay-actions">
+        <div class="sig-overlay-toolbar">
+          <button class="btn-sm" id="tc-sig-cancel">← Back</button>
+          <button class="btn-sm" id="tc-sig-undo">↩ Undo</button>
+          <button class="btn-sm" id="tc-sig-redo-clear">🗑 Clear</button>
+        </div>
+        <button class="btn-gold btn-full" id="tc-sig-save-btn">✓ Save Signature</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ======================== VOICE TAB ======================== -->
+<div id="tab-voice" class="tabpanel">
+
+  <!-- CUSTOMER INFO -->
+  <section class="card">
+    <div class="row-between">
+      <div class="card-title" style="margin-bottom:0;">Customer Info</div>
+      <button class="btn-sm btn-danger-sm" id="btn-reset-audit">Reset</button>
+    </div>
+    <div class="field-row">
+      <input class="field" id="f-name" type="text" placeholder="Customer name" autocomplete="off">
+      <input class="field" id="f-address" type="text" placeholder="Address" autocomplete="off">
+    </div>
+    <div class="field-row">
+      <input class="field" id="f-date" type="date">
+      <input class="field" id="f-year" type="text" inputmode="numeric" placeholder="Year built">
+      <input class="field" id="f-sqft" type="text" inputmode="numeric" placeholder="Sq ft">
+    </div>
+    <div class="field-row">
+      <select class="field" id="f-coop">
+        <option value="">Select Co-op...</option>
+        <option>Arkansas Valley</option>
+        <option>C&amp;L Electric</option>
+        <option>Carroll Electric</option>
+        <option>Clay County Electric</option>
+        <option>Craighead Electric</option>
+        <option>Delta Electric</option>
+        <option>Farmers Electric</option>
+        <option>First Electric</option>
+        <option>Mississippi County Electric</option>
+        <option>Ouachita Electric</option>
+        <option>Ozarks Electric</option>
+        <option>Petit Jean Electric</option>
+        <option>Rich Mountain Electric</option>
+        <option>South Central Arkansas Electric</option>
+        <option>Southwest Arkansas Electric</option>
+        <option>Verdigris Valley Electric</option>
+        <option>Woodruff Electric</option>
+      </select>
+    </div>
+  </section>
+
+  <!-- CHEAT SHEET -->
+  <section class="card">
+    <button class="cheat-toggle" id="cheat-toggle">📋 Field Cheat Sheet <span id="cheat-arrow">▼</span></button>
+    <div class="cheat-body" id="cheat-body">
+      <div class="cheat-item">1. <b>HVAC SYSTEM</b> — Type (heat pump/gas/electric)? Tonnage? Strip backup heat (stage 2)? Ecobee eligible?</div>
+      <div class="cheat-item">2. <b>SUPPLEMENTAL HEAT/COOL</b> — Wood stove? Pellet stove? Electric space heaters? Window units? How many, where?</div>
+      <div class="cheat-item">3. <b>WATER HEATER</b> — Electric or gas? Conditioned or unconditioned? Temp setting? Pipe wrap needed? (only if electric)</div>
+      <div class="cheat-item">4. <b>WATER MEASURES</b> — Aerators installed? How many? Showerheads installed? How many? Temp adjustment done?</div>
+      <div class="cheat-item">5. <b>INSULATION</b> — Type and depth in inches? Attic access location? Any tier 2 defects visible? Whole home insulation eligible?</div>
+      <div class="cheat-item">6. <b>ATTIC</b> — Attic scuttle/s — present? Do any need insulated? Attic fan present? Sealed and insulated or needs work? Belt removed/disabled?</div>
+      <div class="cheat-item">7. <b>DUCT SEALING</b> — Level 1/2/3/4? Locations — line set penetrations, return cavity, air handler, plenum, branches, boots, tab connections, etc?</div>
+      <div class="cheat-item">8. <b>AIR SEALING</b> — Level 1/2/3/4? Weatherstripping — which doors, what type? Plumbing penetrations — which rooms? Can lights? Big holes?</div>
+      <div class="cheat-item">9. <b>CONDENSER/SYSTEM CONDITION</b> — Condenser clean or needs cleaning? Any obvious HVAC issues to note?</div>
+      <div class="cheat-item">10. <b>OZARKS MEMBER?</b> — Co-op? Any program eligibility edge cases? Anything unusual about this house?</div>
+    </div>
+  </section>
+
+  <!-- GENERAL NOTES -->
+  <section class="card">
+    <div class="general-notes-toolbar">
+      <div class="card-title">General Notes</div>
+      <button type="button" class="btn-record-voice" id="record-voice-btn">🎙 Record Voice 🎙</button>
+      <button type="button" class="btn-sm btn-danger-sm" id="voice-clear-btn">Clear</button>
+    </div>
+    <textarea class="voice-area" id="voice-dump" placeholder="Type notes here, or tap Record Voice to dictate while reading the cheat sheet."></textarea>
+  </section>
+
+  <!-- PHOTO NOTES SUMMARY — auto-populated, read-only, separate from General Notes -->
+  <section class="card">
+    <div class="row-between">
+      <div class="card-title">📷 Photo Notes <span id="photo-notes-count" class="photo-notes-count"></span></div>
+    </div>
+    <div class="card-sub">Auto-collected from notes on the Photos tab — organized by category.</div>
+    <div id="photo-notes-summary"><div class="empty-msg">No photo notes yet</div></div>
+  </section>
+
+</div>
+
+<!-- ======================== PHOTOS TAB ======================== -->
+<div id="tab-photos" class="tabpanel" style="display:none">
+
+  <section class="card" id="photo-controls-sticky">
+    <div class="row-between" style="margin-bottom:8px;">
+      <div class="photo-count-display" id="photo-count">0 / 50 photos</div>
+      <button class="btn-sm" id="btn-enter-select" onclick="enterSelectMode()" style="margin-right:4px;">Select</button>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <button class="btn-sm photo-view-btn active" id="btn-view-grid">⊞ Grid</button>
+        <button class="btn-sm photo-view-btn" id="btn-view-full">☰ Full</button>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:6px;">
+      <label class="btn-gold photo-label" style="flex:1;text-align:center;">
+        📷 Add Photo
+        <input type="file" id="photo-input" accept="image/*" capture="environment" multiple style="display:none">
+      </label>
+      <label class="btn-outline photo-label" style="flex:1;text-align:center;">
+        📁 Upload
+        <input type="file" id="photo-upload-input" accept="image/*" multiple style="display:none">
+      </label>
+    </div>
+    <div class="photo-warn" id="photo-warn" style="display:none">⚠️ Approaching 50 photo limit — delete duplicates</div>
+  </section>
+
+  <!-- SELECT MODE TOOLBAR -->
+  <div id="select-toolbar" class="select-toolbar" style="display:none;">
+    <button class="btn-sm" id="btn-select-all">Select All</button>
+    <span id="select-count" class="select-count">0 selected</span>
+    <button class="btn-sm" id="btn-cancel-select">Cancel</button>
+  </div>
+
+  <!-- DELETE SELECTED BAR -->
+  <div id="delete-bar" class="delete-bar" style="display:none;">
+    <button class="btn-danger btn-full" id="btn-delete-selected">🗑 Delete Selected</button>
+  </div>
+
+  <div id="photo-list"></div>
+
+</div>
+
+<!-- ======================== AUDITS TAB ======================== -->
+<div id="tab-audits" class="tabpanel" style="display:none">
+
+  <section class="card">
+    <div class="row-between" style="margin-bottom:10px;">
+      <div class="card-title" style="margin-bottom:0;">Saved Audits</div>
+      <button class="btn-gold btn-sm" id="save-btn">Save Current Audit</button>
+    </div>
+    <div id="audits-list"><div class="empty-msg">No saved audits yet</div></div>
+  </section>
+
+  <section class="card">
+    <div class="card-title">📥 Import Legacy Audit</div>
+    <div class="card-sub">Select the original audit JSON from a pre-bundle export. It will be added to Saved Audits for reference.</div>
+    <div class="field-row">
+      <label class="btn-outline photo-label" style="flex:1;text-align:center;">
+        📄 JSON (required)
+        <input type="file" id="legacy-json-input" accept=".json" style="display:none;">
+      </label>
+    </div>
+    <div id="legacy-import-selected" class="card-sub" style="margin-top:8px;">No JSON selected</div>
+    <button class="btn-gold btn-full" id="legacy-import-btn" style="margin-top:8px;">Import Legacy Audit</button>
+  </section>
+
+</div>
+
+<!-- ======================== EXPORT TAB ======================== -->
+<div id="tab-export" class="tabpanel" style="display:none">
+
+  <div id="weekly-batches-container">
+    <!-- Rendered by JS -->
+  </div>
+
+</div>
+
+<!-- ======================== MORE TAB (Contacts + Notes) ======================== -->
+<div id="tab-more" class="tabpanel" style="display:none">
+
+  <section class="card more-card">
+    <div class="card-title">⚙️ Settings</div>
+    <div class="card-sub">Your first name — used at the start of zip filenames.</div>
+    <input class="field more-field-full" id="auditor-name-input" type="text" placeholder="Optional — your first name" autocomplete="off" maxlength="32">
+    <div class="card-sub" id="auditor-name-preview" style="margin-top:8px;"></div>
+    <button class="btn-gold btn-full" id="auditor-name-save" style="margin-top:8px;">Save Name</button>
+  </section>
+
+  <div class="more-subnav">
+    <button class="more-pill active" data-more="contacts">Contacts</button>
+    <button class="more-pill" data-more="notes">Notes</button>
+  </div>
+
+  <div id="more-contacts-panel">
+    <section class="card more-card">
+      <div class="more-toolbar">
+        <input class="field more-search" id="contact-search" type="search" placeholder="Search contacts...">
+        <div class="more-toolbar-actions">
+          <button class="btn-gold btn-sm" id="contact-new-btn">+ New</button>
+        </div>
+      </div>
+      <div class="filter-chips" id="contact-filter-chips">
+        <button class="filter-chip active" data-filter="">All</button>
+        <button class="filter-chip" data-filter="customer">Customers</button>
+        <button class="filter-chip" data-filter="professional">Professional</button>
+        <button class="filter-chip" data-filter="personal">Personal</button>
+        <button class="filter-chip" data-filter="potential partner">Partners</button>
+        <button class="filter-chip" data-filter="potential investor">Investors</button>
+      </div>
+    </section>
+    <div id="contact-detail" style="display:none"></div>
+    <div id="contact-list"><div class="empty-msg">No contacts yet</div></div>
+    <div id="contact-form" style="display:none">
+      <section class="card more-card">
+        <div class="card-title" id="contact-form-title">New Contact</div>
+        <input class="field more-field-full" id="cf-name" placeholder="Name *">
+        <input class="field more-field-full" id="cf-phone" placeholder="Phone">
+        <input class="field more-field-full" id="cf-email" placeholder="Email">
+        <select class="field more-field-full" id="cf-type">
+          <option value="">Relationship type...</option>
+          <option>customer</option><option>professional</option><option>personal</option>
+          <option>potential partner</option><option>potential investor</option>
+        </select>
+        <input class="field more-field-full" id="cf-how-met" placeholder="How we met">
+        <div class="trust-row">
+          <span class="trust-row-label">Trust:</span>
+          <div class="trust-dots" id="cf-trust-dots">
+            <span class="trust-dot" data-val="0">○</span><span class="trust-dot" data-val="1">○</span>
+            <span class="trust-dot" data-val="2">○</span><span class="trust-dot" data-val="3">○</span>
+            <span class="trust-dot" data-val="4">○</span><span class="trust-dot" data-val="5">○</span>
+          </div>
+          <input type="hidden" id="cf-trust" value="0">
+        </div>
+        <select class="field more-field-full" id="cf-potential">
+          <option value="">Business potential...</option>
+          <option value="high">High</option><option value="medium">Medium</option>
+          <option value="low">Low</option><option value="none">None</option>
+        </select>
+        <input class="field more-field-full" id="cf-tags" placeholder="Tags (comma separated)">
+        <textarea class="voice-area more-field-full" id="cf-notes" placeholder="Notes..." style="height:80px"></textarea>
+        <input type="hidden" id="cf-id">
+        <div class="more-form-actions">
+          <button class="btn-sm" id="contact-form-cancel">Cancel</button>
+          <button class="btn-gold btn-full" id="contact-form-save">Save Contact</button>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <div id="more-notes-panel" style="display:none">
+    <section class="card more-card">
+      <div class="more-toolbar">
+        <input class="field more-search" id="notes-search" type="search" placeholder="Search notes...">
+        <div class="more-toolbar-actions">
+          <button class="btn-sm" id="note-tasks-btn">Tasks</button>
+          <button class="btn-gold btn-sm" id="note-new-btn">+ New</button>
+        </div>
+      </div>
+    </section>
+    <div id="note-editor" style="display:none">
+      <section class="card more-card">
+        <div class="more-title-row">
+          <input class="field" id="ne-title" placeholder="Title...">
+          <label class="more-task-check">
+            <input type="checkbox" id="ne-is-task"> Task
+          </label>
+        </div>
+        <input class="field more-field-full" id="ne-tags" placeholder="Tags (comma separated)">
+        <textarea class="voice-area more-field-full" id="ne-content" placeholder="Note content..." style="height:200px"></textarea>
+        <input type="hidden" id="ne-id">
+        <div class="more-form-actions">
+          <button class="btn-sm" id="note-editor-cancel">Cancel</button>
+          <button class="btn-danger-sm" id="note-editor-delete" style="display:none">Delete</button>
+          <button class="btn-gold btn-full" id="note-editor-save">Save Note</button>
+        </div>
+      </section>
+    </div>
+    <div id="notes-list"><div class="empty-msg">No notes yet</div></div>
+  </div>
+
+</div>
+
+<!-- PHOTO NOTE MODAL -->
+<div id="photo-modal" class="modal" style="display:none">
+  <div class="modal-box">
+    <div class="modal-header">
+      <span class="modal-title">📷 Photo Note</span>
+      <button type="button" class="btn-danger-sm" id="modal-clear">Clear</button>
+      <button class="btn-sm" id="modal-close">✕ Close</button>
+    </div>
+    <div class="modal-scroll">
+      <div class="modal-img-wrap" id="modal-img-wrap">
+        <img id="modal-img" src="" alt="" class="modal-img">
+        <canvas id="modal-markup-canvas" class="modal-markup-canvas"></canvas>
+      </div>
+      <button class="btn-outline btn-full" id="modal-markup-btn" style="margin-bottom:12px;">✏️ Markup Photo</button>
+      <div class="modal-section-label">Category</div>
+      <div class="chip-row" id="modal-category-chips"></div>
+      <div class="preset-header" id="modal-preset-header" style="display:none;">
+        <div class="modal-section-label" id="modal-preset-label">Quick Notes — tap to insert</div>
+        <button type="button" class="btn-sm preset-undo-btn" id="modal-preset-undo" disabled>Undo Last</button>
+      </div>
+      <div class="preset-notes" id="modal-preset-notes"></div>
+      <textarea class="note-area" id="modal-note" placeholder="Describe what this photo shows and what needs to be done..."></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-danger btn-half" id="modal-delete">🗑 Delete Photo</button>
+      <button class="btn-gold btn-half" id="modal-save">✓ Save Note</button>
+    </div>
+  </div>
+</div>
+
+<!-- PHOTO MARKUP OVERLAY -->
+<div id="markup-overlay" class="markup-overlay" style="display:none;">
+  <div class="markup-overlay-inner">
+    <div class="markup-overlay-title">Photo Markup</div>
+    <div class="markup-stage" id="markup-stage">
+      <img id="markup-img" src="" alt="">
+      <canvas id="markup-canvas"></canvas>
+    </div>
+    <div class="markup-toolbar">
+      <div class="markup-toolbar-row">
+        <span class="markup-toolbar-label">Color</span>
+        <div class="markup-color-chips">
+          <button type="button" class="markup-color-chip active" data-color="#e03333" title="Red"></button>
+          <button type="button" class="markup-color-chip" data-color="#ffcc00" title="Yellow"></button>
+          <button type="button" class="markup-color-chip" data-color="#ffffff" title="White"></button>
+          <button type="button" class="markup-color-chip" data-color="#000000" title="Black"></button>
+        </div>
+      </div>
+      <div class="markup-toolbar-row">
+        <label class="markup-thickness-label" for="markup-width">Thickness</label>
+        <input type="range" id="markup-width" min="2" max="14" value="4" class="markup-width-slider">
+      </div>
+      <div class="markup-overlay-actions">
+        <button class="btn-sm" id="markup-undo" type="button">↩ Undo</button>
+        <button class="btn-sm" id="markup-clear" type="button">🗑 Clear</button>
+        <button class="btn-sm" id="markup-cancel" type="button">Cancel</button>
+        <button class="btn-gold" id="markup-save" type="button">✓ Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div id="toast" class="toast" style="display:none"></div>
+<div id="autosave-indicator">✓ Saved</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="idb-contacts-notes.js"></script>
+<script src="contacts-tab.js"></script>
+<script src="notes-tab.js"></script>
+<script src="script.js"></script>
+</body>
+</html>
