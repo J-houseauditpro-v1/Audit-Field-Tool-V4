@@ -538,11 +538,36 @@ function positionPhotoStickyControls() {
   el.style.top = (header.offsetHeight + tabnav.offsetHeight) + 'px';
 }
 
+function openSettingsPanel() {
+  autosaveAudit();
+  stopVoiceRec();
+  document.querySelectorAll('.tab').forEach(function(b) { b.classList.remove('active'); });
+  document.querySelectorAll('.tabpanel').forEach(function(p) { p.style.display = 'none'; });
+  var gear = document.getElementById('header-settings-btn');
+  if (gear) gear.classList.add('active');
+  document.getElementById('tab-more').style.display = 'block';
+  initAftMoreTab();
+  if (typeof refreshInterpretSettingsUI === 'function') refreshInterpretSettingsUI();
+  if (typeof initGoogleSheetsSettings === 'function') initGoogleSheetsSettings();
+  var auditorInput = document.getElementById('auditor-name-input');
+  if (auditorInput) {
+    auditorInput.value = getStoredAuditorName();
+    updateAuditorNamePreview(auditorInput.value);
+  }
+}
+
 function initTabs() {
+  var settingsBtn = document.getElementById('header-settings-btn');
+  if (settingsBtn) {
+    settingsBtn.addEventListener('click', openSettingsPanel);
+  }
+
   document.querySelectorAll('.tab').forEach(function(btn) {
     btn.addEventListener('click', function() {
       autosaveAudit();
       if (btn.dataset.tab !== 'voice') stopVoiceRec();
+      var gear = document.getElementById('header-settings-btn');
+      if (gear) gear.classList.remove('active');
       document.querySelectorAll('.tab').forEach(function(b) { b.classList.remove('active'); });
       document.querySelectorAll('.tabpanel').forEach(function(p) { p.style.display = 'none'; });
       btn.classList.add('active');
@@ -550,16 +575,6 @@ function initTabs() {
       if (btn.dataset.tab === 'export') renderWeeklyBatches();
       if (btn.dataset.tab === 'interpret' && typeof initInterpretTab === 'function') initInterpretTab();
       if (btn.dataset.tab === 'customers' && typeof initCustomersTab === 'function') initCustomersTab();
-      if (btn.dataset.tab === 'more') {
-        initAftMoreTab();
-        if (typeof refreshInterpretSettingsUI === 'function') refreshInterpretSettingsUI();
-        if (typeof initGoogleSheetsSettings === 'function') initGoogleSheetsSettings();
-        var auditorInput = document.getElementById('auditor-name-input');
-        if (auditorInput) {
-          auditorInput.value = getStoredAuditorName();
-          updateAuditorNamePreview(auditorInput.value);
-        }
-      }
       if (btn.dataset.tab === 'tc') renderTCInfo();
       if (btn.dataset.tab === 'audits') renderAuditsList();
       if (btn.dataset.tab === 'photos') positionPhotoStickyControls();
