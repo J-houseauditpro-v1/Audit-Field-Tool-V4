@@ -585,6 +585,12 @@ body.modal-open {
   flex: 1;
   min-width: 0;
 }
+.export-full-backup-card {
+  margin-bottom: 10px;
+}
+.export-full-backup-card .pdf-progress {
+  margin-top: 8px;
+}
 #weekly-batches-container .week-audit-row {
   padding: 6px 12px;
   gap: 0;
