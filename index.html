@@ -270,6 +270,14 @@
   </section>
 
   <section class="card">
+    <div class="card-title">💾 Restore from Backup</div>
+    <div class="card-sub">Restore audits, photos, signatures, and interpreted output from a Full Backup or Weekly Backup zip file.</div>
+    <input type="file" id="backup-restore-input" accept=".zip,application/zip" style="display:none;">
+    <button class="btn-gold btn-full" id="backup-restore-btn" style="margin-top:8px;">📂 Select Backup Zip</button>
+    <div id="backup-restore-selected" class="card-sub" style="margin-top:8px;display:none;"></div>
+  </section>
+
+  <section class="card">
     <div class="card-title">⬆️ Import V2/V3 Audits</div>
     <div class="card-sub">Import a bulk JSON export from Audit Field Tool V2 or V3. Select the <code>aft_saved</code> JSON file downloaded from the old app. Photos are noted as not imported (they live in the old app's storage).</div>
     <input type="file" id="v2v3-import-input" accept=".json" style="display:none;">
@@ -293,6 +301,14 @@
 
 <!-- ======================== EXPORT TAB ======================== -->
 <div id="tab-export" class="tabpanel" style="display:none">
+
+  <div id="export-full-backup-section" style="display:none;">
+    <section class="card export-full-backup-card">
+      <div class="card-sub">Export every saved audit on this device — full records, photos, signatures, interpreted output, and legacy PDFs.</div>
+      <button class="btn-gold btn-full" id="export-full-backup-btn" style="margin-top:8px;">💾 Full Backup</button>
+      <div class="pdf-progress" id="export-full-backup-progress">Building backup...</div>
+    </section>
+  </div>
 
   <div id="weekly-batches-container">
     <!-- Rendered by JS -->

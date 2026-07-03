@@ -1863,6 +1863,7 @@ function initAuditsTab() {
     if (!S.name && !S.dump && !S.photos.length) { toast('Nothing to save — add info first'); return; }
     if (confirm('Save current audit and start a fresh one?')) { saveAudit(); clearCurrent(); }
   });
+  initBackupRestore();
 }
 
 // Core upsert into the Saved Audits list — shared by the manual Save button
@@ -2202,7 +2203,15 @@ function renderAuditsList() {
 }
 
 // ── EXPORT TAB ────────────────────────────────────────────────
-function initExportTab() {}
+function initExportTab() {
+  var btn = document.getElementById('export-full-backup-btn');
+  if (btn) {
+    btn.addEventListener('click', function() {
+      var progress = document.getElementById('export-full-backup-progress');
+      exportFullBackup(progress);
+    });
+  }
+}
 
 function renderExportSummary() {
   // No longer used — export tab uses weekly batch view
@@ -2722,11 +2731,15 @@ function renderWeeklyBatches() {
   if (!container) return;
 
   var saved = getSaved();
+  var fullBackupSection = document.getElementById('export-full-backup-section');
 
   if (!saved.length) {
+    if (fullBackupSection) fullBackupSection.style.display = 'none';
     container.innerHTML = '<div class="export-empty-msg">No saved audits yet.<br>Complete an audit on the Audit Data tab, then save it on the Audits tab.</div>';
     return;
   }
+
+  if (fullBackupSection) fullBackupSection.style.display = 'block';
 
   var weeks = groupAuditsByWeek(saved);
   container.innerHTML = '';
@@ -2759,17 +2772,17 @@ function renderWeeklyBatches() {
         '<span class="week-group-count">' + week.audits.length + ' audit' + (week.audits.length !== 1 ? 's' : '') + '</span>' +
       '</div>' +
       '<div class="week-batch-btns">' +
-        '<button class="btn-gold btn-full week-bundle-btn">Weekly JSON (Zip File)</button>' +
-        '<button class="btn-gold btn-full week-scheduler-btn">Weekly T&amp;C + Photos (Zip File)</button>' +
+        '<button class="btn-gold btn-full week-backup-btn">Weekly Backup</button>' +
+        '<button class="btn-gold btn-full week-scheduler-btn">Weekly T&amp;C + Photos</button>' +
       '</div>' +
       '<div class="pdf-progress week-pdf-progress">Building bundle...</div>' +
       auditRows;
 
     container.appendChild(group);
 
-    group.querySelector('.week-bundle-btn').addEventListener('click', function() {
+    group.querySelector('.week-backup-btn').addEventListener('click', function() {
       var progress = group.querySelector('.week-pdf-progress');
-      exportWeekBundle(week, progress);
+      exportWeeklyBackup(week, progress);
     });
 
     group.querySelector('.week-scheduler-btn').addEventListener('click', function() {
@@ -2882,67 +2895,328 @@ function exportSavedPhotoPDF(audit, callback, blobMode) {
 }
 
 // ============================================================
-// WEEKLY BUNDLE — JSON-only zip for Jarvis Audit Tool import
+// FULL-FIDELITY BACKUP — export and restore
 // ============================================================
-function exportWeekBundle(week, progressEl) {
+
+var BACKUP_BUNDLE_FULL = 'full-backup';
+var BACKUP_BUNDLE_WEEKLY = 'weekly-backup';
+
+function buildFullAuditBackupRecord(audit) {
+  return JSON.parse(JSON.stringify(audit));
+}
+
+function collectBackupPhotosForAudit(audit, callback) {
+  var photos = audit.photos || [];
+  var results = [];
+  var i = 0;
+
+  function nextPhoto() {
+    if (i >= photos.length) {
+      getLegacyFiles(audit.id, function(legacy) {
+        callback(results, legacy || null);
+      });
+      return;
+    }
+    var meta = photos[i];
+    getPhotoFromDB(meta.id, function(record) {
+      var dataUrl = (record && record.dataUrl) || meta.dataUrl || null;
+      if (dataUrl) {
+        results.push({
+          id: meta.id,
+          auditId: audit.id,
+          dataUrl: dataUrl,
+          note: meta.note || (record ? record.note : '') || '',
+          category: meta.category || (record ? record.category : '') || '',
+          ts: meta.ts || meta.timestamp || (record ? record.ts : null),
+          markupStrokes: meta.markupStrokes || (record && record.markupStrokes) || []
+        });
+      }
+      i++;
+      nextPhoto();
+    });
+  }
+  nextPhoto();
+}
+
+function exportBackupBundle(audits, opts) {
   if (typeof JSZip === 'undefined') { toast('Zip library not loaded — check internet connection'); return; }
-  if (!week.audits.length) { toast('No audits in this week'); return; }
+  if (!audits.length) { toast('No audits to back up'); return; }
 
   var zip = new JSZip();
-  var jsonFolder = zip.folder('json');
-  var weekStart = week.monday.toISOString().split('T')[0];
-
+  var auditsFolder = zip.folder('audits');
+  var photosFolder = zip.folder('photos');
+  var legacyFolder = zip.folder('legacy');
   var manifest = {
-    week: week.label,
-    weekStart: weekStart,
+    bundleType: opts.bundleType,
     exportedAt: new Date().toISOString(),
     source: 'AuditFieldTool',
-    bundleType: 'json-only',
-    auditCount: week.audits.length,
+    version: 1,
+    auditCount: audits.length,
+    photoCount: 0,
     audits: []
   };
+  if (opts.week) manifest.week = opts.week;
+  if (opts.weekStart) manifest.weekStart = opts.weekStart;
 
-  if (progressEl) { progressEl.style.display = 'block'; progressEl.textContent = 'Building JSON bundle...'; }
+  var auditIndex = 0;
+  var photoCount = 0;
+  var progressEl = opts.progressEl;
 
-  week.audits.forEach(function(audit, index) {
-    var safeName = (audit.customer.name || 'audit-' + (index + 1)).replace(/[^a-zA-Z0-9]/g, '-');
-    var dateStr = audit.customer.date || new Date().toISOString().split('T')[0];
-    var baseFilename = dateStr + '_' + safeName;
+  if (progressEl) {
+    progressEl.style.display = 'block';
+    progressEl.textContent = 'Building backup — 0 / ' + audits.length;
+  }
 
-    if (progressEl) progressEl.textContent = 'JSON bundle — ' + (index + 1) + ' / ' + week.audits.length + ': ' + (audit.customer.name || 'Unnamed');
+  function processNextAudit() {
+    if (auditIndex >= audits.length) {
+      manifest.photoCount = photoCount;
+      zip.file('manifest.json', JSON.stringify(manifest, null, 2));
+      if (progressEl) progressEl.textContent = 'Zipping backup...';
+      zip.generateAsync({ type: 'blob' }).then(function(blob) {
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = opts.downloadName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        if (progressEl) progressEl.style.display = 'none';
+        toast('Backup exported — ' + manifest.auditCount + ' audit' + (manifest.auditCount !== 1 ? 's' : '') + ', ' + photoCount + ' photo' + (photoCount !== 1 ? 's' : ''));
+      }).catch(function(e) {
+        if (progressEl) progressEl.style.display = 'none';
+        toast('Zip error: ' + e.message);
+        console.error('[BackupExport] zip error:', e);
+      });
+      return;
+    }
 
-    jsonFolder.file(baseFilename + '.json', JSON.stringify(buildLeanAudit(audit), null, 2));
-    manifest.audits.push({
-      id: audit.id,
-      name: audit.customer.name || 'Unnamed',
-      date: dateStr,
-      jsonFile: 'json/' + baseFilename + '.json',
-      hasSignature: auditHasSignature(audit),
-      photoCount: (audit.photos || []).length
+    var audit = audits[auditIndex];
+    if (progressEl) {
+      progressEl.textContent = 'Building backup — ' + (auditIndex + 1) + ' / ' + audits.length + ': ' + (audit.customer.name || 'Unnamed');
+    }
+
+    collectBackupPhotosForAudit(audit, function(photoRecords, legacyRecord) {
+      var auditFile = 'audits/' + audit.id + '.json';
+      auditsFolder.file(audit.id + '.json', JSON.stringify(buildFullAuditBackupRecord(audit), null, 2));
+
+      var entry = {
+        id: audit.id,
+        name: (audit.customer && audit.customer.name) || 'Unnamed',
+        auditFile: auditFile,
+        photos: []
+      };
+
+      photoRecords.forEach(function(photo) {
+        var photoFile = 'photos/' + photo.id + '.json';
+        photosFolder.file(photo.id + '.json', JSON.stringify(photo, null, 2));
+        entry.photos.push(photoFile);
+        photoCount++;
+      });
+
+      if (legacyRecord && (legacyRecord.photoPdfDataUrl || legacyRecord.tcPdfDataUrl)) {
+        var legacyFile = 'legacy/' + audit.id + '.json';
+        legacyFolder.file(audit.id + '.json', JSON.stringify({
+          auditId: audit.id,
+          photoPdfDataUrl: legacyRecord.photoPdfDataUrl || null,
+          tcPdfDataUrl: legacyRecord.tcPdfDataUrl || null
+        }, null, 2));
+        entry.legacyFile = legacyFile;
+      }
+
+      manifest.audits.push(entry);
+      auditIndex++;
+      setTimeout(processNextAudit, 10);
     });
-  });
+  }
 
-  zip.file('manifest.json', JSON.stringify(manifest, null, 2));
-  if (progressEl) progressEl.textContent = 'Zipping...';
+  processNextAudit();
+}
 
-  zip.generateAsync({ type: 'blob' }).then(function(blob) {
-    var url = URL.createObjectURL(blob);
-    var a = document.createElement('a');
-    a.href = url;
-    a.download = 'WEEK_' + weekStart + '.zip';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    if (progressEl) progressEl.style.display = 'none';
-    toast('JSON bundle exported — ' + manifest.auditCount + ' audits');
-  }).catch(function(e) {
-    if (progressEl) progressEl.style.display = 'none';
-    toast('Zip error: ' + e.message);
-    console.error('Zip generation error:', e);
+function exportFullBackup(progressEl) {
+  var saved = getSaved();
+  if (!saved.length) { toast('No saved audits to back up'); return; }
+  var dateStr = new Date().toISOString().split('T')[0];
+  exportBackupBundle(saved, {
+    bundleType: BACKUP_BUNDLE_FULL,
+    progressEl: progressEl,
+    downloadName: 'AFT_Full_Backup_' + dateStr + '.zip'
   });
 }
 
+function exportWeeklyBackup(week, progressEl) {
+  if (!week.audits.length) { toast('No audits in this week'); return; }
+  var weekStart = week.monday.toISOString().split('T')[0];
+  exportBackupBundle(week.audits, {
+    bundleType: BACKUP_BUNDLE_WEEKLY,
+    week: week.label,
+    weekStart: weekStart,
+    progressEl: progressEl,
+    downloadName: 'AFT_Weekly_Backup_' + weekStart + '.zip'
+  });
+}
+
+function initBackupRestore() {
+  var btn = document.getElementById('backup-restore-btn');
+  var input = document.getElementById('backup-restore-input');
+  var selected = document.getElementById('backup-restore-selected');
+  if (!btn || !input) return;
+
+  btn.addEventListener('click', function() { input.click(); });
+  input.addEventListener('change', function() {
+    var file = input.files[0];
+    if (!file) return;
+    if (selected) {
+      selected.style.display = 'block';
+      selected.textContent = '✓ ' + file.name;
+    }
+    restoreFromBackupFile(file);
+    input.value = '';
+  });
+}
+
+function restoreFromBackupFile(file) {
+  if (typeof JSZip === 'undefined') { toast('Zip library not loaded — check internet connection'); return; }
+  if (!file || !/\.zip$/i.test(file.name)) {
+    toast('Please select a .zip backup file');
+    return;
+  }
+
+  toast('Restoring backup...');
+
+  JSZip.loadAsync(file).then(function(zip) {
+    var manifestEntry = zip.file('manifest.json');
+    if (!manifestEntry) throw new Error('Not a valid backup — missing manifest.json');
+    return manifestEntry.async('string').then(function(text) {
+      var manifest;
+      try { manifest = JSON.parse(text); }
+      catch(e) { throw new Error('Not a valid backup — manifest.json is corrupted'); }
+      if (!manifest.bundleType || (manifest.bundleType !== BACKUP_BUNDLE_FULL && manifest.bundleType !== BACKUP_BUNDLE_WEEKLY)) {
+        throw new Error('Not a valid Audit Field Tool backup — use a Full Backup or Weekly Backup zip');
+      }
+      if (!manifest.audits || !manifest.audits.length) {
+        throw new Error('Backup zip contains no audits');
+      }
+      return restoreBackupFromZip(zip, manifest);
+    });
+  }).then(function(result) {
+    toast('Restored ' + result.auditCount + ' audit' + (result.auditCount !== 1 ? 's' : '') + ' and ' + result.photoCount + ' photo' + (result.photoCount !== 1 ? 's' : ''));
+    renderAuditsList();
+    var exportPanel = document.getElementById('tab-export');
+    if (exportPanel && exportPanel.style.display === 'block') renderWeeklyBatches();
+  }).catch(function(err) {
+    toast(err.message || 'Restore failed');
+    console.error('[BackupRestore] failed:', err);
+  });
+}
+
+function restoreBackupFromZip(zip, manifest) {
+  return new Promise(function(resolve, reject) {
+    var saved = getSaved().slice();
+    var auditCount = 0;
+    var photoCount = 0;
+    var entries = manifest.audits.slice();
+    var entryIndex = 0;
+
+    function nextEntry() {
+      if (entryIndex >= entries.length) {
+        saved.sort(function(a, b) {
+          return (b.savedAt || '').localeCompare(a.savedAt || '');
+        });
+        setSaved(saved);
+        resolve({ auditCount: auditCount, photoCount: photoCount });
+        return;
+      }
+
+      var entry = entries[entryIndex];
+      var auditPath = entry.auditFile || ('audits/' + entry.id + '.json');
+      var auditFile = zip.file(auditPath);
+      if (!auditFile) {
+        entryIndex++;
+        nextEntry();
+        return;
+      }
+
+      auditFile.async('string').then(function(text) {
+        var audit;
+        try { audit = JSON.parse(text); }
+        catch(e) { throw new Error('Corrupted audit file in backup'); }
+        if (!audit || !audit.id) throw new Error('Invalid audit record in backup');
+
+        restoreBackupPhotos(zip, entry.photos || [], audit.id).then(function(restoredPhotos) {
+          photoCount += restoredPhotos;
+
+          var legacyPath = entry.legacyFile || ('legacy/' + audit.id + '.json');
+          var legacyZipFile = zip.file(legacyPath);
+          var legacyPromise;
+          if (legacyZipFile) {
+            legacyPromise = legacyZipFile.async('string').then(function(legacyText) {
+              var legacy = JSON.parse(legacyText);
+              audit.legacyImport = true;
+              audit.legacyPhotoPdf = !!legacy.photoPdfDataUrl;
+              audit.legacyTcPdf = !!legacy.tcPdfDataUrl;
+              return new Promise(function(res) {
+                saveLegacyFiles(audit.id, legacy.photoPdfDataUrl, legacy.tcPdfDataUrl, function() { res(); });
+              });
+            });
+          } else {
+            legacyPromise = Promise.resolve();
+          }
+
+          return legacyPromise.then(function() {
+            var idx = saved.findIndex(function(a) { return a.id === audit.id; });
+            if (idx >= 0) saved[idx] = audit;
+            else saved.unshift(audit);
+            auditCount++;
+            entryIndex++;
+            nextEntry();
+          });
+        });
+      }).catch(reject);
+    }
+
+    nextEntry();
+  });
+}
+
+function restoreBackupPhotos(zip, photoPaths, auditId) {
+  return new Promise(function(resolve) {
+    if (!photoPaths.length) { resolve(0); return; }
+    var restored = 0;
+    var i = 0;
+
+    function next() {
+      if (i >= photoPaths.length) { resolve(restored); return; }
+      var path = photoPaths[i];
+      var photoFile = zip.file(path);
+      if (!photoFile) { i++; next(); return; }
+      photoFile.async('string').then(function(text) {
+        var photo;
+        try { photo = JSON.parse(text); } catch(e) { i++; next(); return; }
+        if (!photo || !photo.id || !photo.dataUrl) { i++; next(); return; }
+        savePhotoToDB({
+          id: photo.id,
+          auditId: auditId,
+          dataUrl: photo.dataUrl,
+          note: photo.note || '',
+          category: photo.category || '',
+          ts: photo.ts || new Date().toISOString(),
+          markupStrokes: photo.markupStrokes || []
+        }, function(ok) {
+          if (ok) restored++;
+          i++;
+          next();
+        });
+      }).catch(function() { i++; next(); });
+    }
+
+    next();
+  });
+}
+
+// ============================================================
+// WEEKLY T&C + PHOTOS BUNDLE — PDF zip for scheduler handoff
+// ============================================================
 function exportWeekSchedulerBundle(week, progressEl) {
   if (typeof JSZip === 'undefined') { toast('Zip library not loaded — check internet connection'); return; }
   if (!week.audits.length) { toast('No audits in this week'); return; }
