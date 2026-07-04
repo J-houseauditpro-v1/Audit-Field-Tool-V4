@@ -1888,6 +1888,8 @@ function persistAuditRecord() {
 
   var saved = getSaved();
   saveTCSignature();
+  var idx = saved.findIndex(function(a) { return a.id === id; });
+  var existing = idx >= 0 ? saved[idx] : null;
   var rec = {
     id: id,
     customer: { name: S.name, address: S.address, date: S.date, yearBuilt: S.year, sqFt: S.sqft, coop: S.coop },
@@ -1895,9 +1897,18 @@ function persistAuditRecord() {
     voiceDump: S.dump,
     photos: S.photos.slice(),
     savedAt: new Date().toISOString(),
-    source: 'AuditFieldTool'
+    source: (existing && existing.source) ? existing.source : 'AuditFieldTool'
   };
-  var idx = saved.findIndex(function(a) { return a.id === id; });
+  // Preserve fields autosave must not wipe (interpret output, legacy flags, etc.)
+  if (existing) {
+    if (existing.interpretedOutput) rec.interpretedOutput = existing.interpretedOutput;
+    if (existing.legacyImport) {
+      rec.legacyImport = true;
+      rec.legacyPhotoPdf = existing.legacyPhotoPdf;
+      rec.legacyTcPdf = existing.legacyTcPdf;
+    }
+    if (existing.photosNotImported) rec.photosNotImported = true;
+  }
   if (idx >= 0) saved[idx] = rec; else saved.unshift(rec);
   setSaved(saved);
   save();
@@ -2058,6 +2069,7 @@ function clearCurrent() {
   S.name = ''; S.address = ''; S.date = ''; S.year = ''; S.sqft = ''; S.coop = '';
   S.dump = ''; S.photos = []; S.auditId = null; S.tcSignature = null;
   clearTCSignature();
+  if (typeof clearInterpretSession === 'function') clearInterpretSession();
   save();
   fillFields();
   renderHeader();
@@ -2102,6 +2114,7 @@ function loadAudit(id) {
   document.querySelector('[data-tab="voice"]').classList.add('active');
   document.getElementById('tab-voice').style.display = 'block';
   toast('Loaded: ' + (S.name || 'audit'));
+  if (typeof refreshInterpretFromLoadedAudit === 'function') refreshInterpretFromLoadedAudit();
 }
 
 function deleteAudit(id) {
@@ -2120,6 +2133,7 @@ function deleteAudit(id) {
     S.auditId = null;
     S.tcSignature = null;
     clearTCSignature();
+    if (typeof clearInterpretSession === 'function') clearInterpretSession();
     save();
     fillFields();
     renderHeader();

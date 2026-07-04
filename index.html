@@ -319,7 +319,7 @@
 <!-- ======================== INTERPRET TAB ======================== -->
 <div id="tab-interpret" class="tabpanel" style="display:none">
 
-  <section class="card">
+  <section class="card interp-copy-mode-hide">
     <div class="card-title">⚡ Audit Interpreter</div>
     <div class="card-sub">Auto-populated from current audit. Tap Interpret to send to Claude.</div>
     <div class="tc-info-grid">
@@ -336,7 +336,7 @@
     </div>
   </section>
 
-  <section class="card">
+  <section class="card interp-copy-mode-hide">
     <div class="interp-action-row">
       <span id="interp-model-badge" class="interp-model-badge">claude-sonnet-4-5</span>
       <button class="btn-gold btn-full" id="interp-run-btn">⚡ Interpret Audit</button>
@@ -344,6 +344,19 @@
     <div id="interp-token-usage" class="interp-token-usage" style="display:none;"></div>
     <div id="interp-no-key-warn" class="tc-warn" style="display:none;">⚠️ No API key set — add it in More → Interpret Settings.</div>
     <div id="interp-no-dump-warn" class="tc-warn" style="display:none;">⚠️ No audit notes in current audit — add data in Audit Data tab first.</div>
+  </section>
+
+  <section class="card" id="interp-workflow-card" style="display:none;">
+    <div class="card-title">📋 JotForm Copy Workflow</div>
+    <div class="card-sub">Tap Open JotForm, log in in Safari, then use iPhone Split View to keep both apps visible. Filter by page to copy one section at a time.</div>
+    <button type="button" class="btn-gold btn-full" id="interp-open-jotform-btn" style="margin-top:8px;">↗ Open JotForm in Browser</button>
+    <div class="interp-page-filter" id="interp-page-filter">
+      <button type="button" class="interp-page-pill active" data-page="all">All</button>
+      <button type="button" class="interp-page-pill" data-page="Page 1">Page 1</button>
+      <button type="button" class="interp-page-pill" data-page="Page 2">Page 2</button>
+      <button type="button" class="interp-page-pill" data-page="Page 3">Page 3</button>
+      <button type="button" class="interp-page-pill" data-page="Page 4">Page 4</button>
+    </div>
   </section>
 
   <section class="card" id="interp-flags-card" style="display:none;">
@@ -361,7 +374,7 @@
     <div class="interp-output-header">
       <div>
         <div class="card-title" style="margin-bottom:2px;">Field Output</div>
-        <div class="card-sub">Copy button copies value · ✏️ corrects value · Flag highlights text.</div>
+        <div class="card-sub">📋 copies value · ✏️ edits · Changes auto-save to this audit.</div>
       </div>
       <button type="button" class="btn-sm" id="interp-flag-start-btn">⚑ Flag</button>
     </div>
@@ -376,13 +389,25 @@
   </section>
 
   <section class="card" id="interp-save-card" style="display:none;">
-    <button class="btn-gold btn-full" id="interp-save-btn">💾 Save Interpretation to Audit</button>
+    <div id="interp-save-status" class="interp-save-status">✓ Interpretation attached to this audit</div>
+    <button class="btn-gold btn-full" id="interp-save-btn">💾 Re-save Interpretation</button>
     <div style="margin-top:10px;border-top:1px solid var(--border);padding-top:10px;">
       <div class="card-sub" style="margin-bottom:6px;">After reviewing and correcting all fields above, submit to JotForm:</div>
       <button class="btn-outline btn-full" id="interp-jotform-submit-btn">📤 Submit to JotForm</button>
       <div id="interp-jotform-status" style="font-size:0.82rem;margin-top:6px;display:none;"></div>
     </div>
   </section>
+
+  <div class="interp-sticky-copy-bar" id="interp-sticky-copy-bar">
+    <button type="button" class="btn-gold interp-sticky-open-btn" id="interp-sticky-open-jotform-btn">↗ JotForm</button>
+    <div class="interp-page-filter" id="interp-sticky-page-filter">
+      <button type="button" class="interp-page-pill active" data-page="all">All</button>
+      <button type="button" class="interp-page-pill" data-page="Page 1">P1</button>
+      <button type="button" class="interp-page-pill" data-page="Page 2">P2</button>
+      <button type="button" class="interp-page-pill" data-page="Page 3">P3</button>
+      <button type="button" class="interp-page-pill" data-page="Page 4">P4</button>
+    </div>
+  </div>
 
 </div>
 
@@ -445,6 +470,8 @@
       <div class="card-sub">Form ID and API key for one-tap submission from the Interpret tab.</div>
       <div class="card-sub" style="margin-top:10px;">Form ID</div>
       <input class="field more-field-full" id="jotform-form-id-input" type="text" placeholder="e.g. 123456789" autocomplete="off">
+      <div class="card-sub" style="margin-top:8px;">Form URL <span style="color:var(--sub);font-size:0.75rem;">(optional — for Open in Browser; defaults to form.jotform.com/ID)</span></div>
+      <input class="field more-field-full" id="jotform-form-url-input" type="url" placeholder="https://form.jotform.com/..." autocomplete="off">
       <div class="card-sub" style="margin-top:8px;">API Key</div>
       <input class="field more-field-full" id="jotform-api-key-input" type="password" placeholder="Your JotForm API key" autocomplete="off">
       <div class="card-sub" style="margin-top:8px;">Field Mapping <span style="color:var(--sub);font-size:0.75rem;">(JSON: {"Field Name": "q5_questionId"})</span></div>
