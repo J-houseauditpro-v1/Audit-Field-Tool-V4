@@ -304,9 +304,14 @@
 
   <div id="export-full-backup-section" style="display:none;">
     <section class="card export-full-backup-card">
-      <div class="card-sub">Export every saved audit on this device — full records, photos, signatures, interpreted output, and legacy PDFs.</div>
+      <div class="card-sub">Backup every saved audit for restore on this or another device. Photos are stored in JSON (base64) so the app can import everything correctly.</div>
       <button class="btn-gold btn-full" id="export-full-backup-btn" style="margin-top:8px;">💾 Full Backup</button>
       <div class="pdf-progress" id="export-full-backup-progress">Building backup...</div>
+    </section>
+    <section class="card export-full-export-card" style="margin-top:10px;">
+      <div class="card-sub">Human-readable export — actual JPG photos, photo PDFs, T&amp;C PDFs, and structured text summaries (not for app restore).</div>
+      <button class="btn-outline btn-full" id="export-full-export-btn" style="margin-top:8px;">📂 Full Export</button>
+      <div class="pdf-progress" id="export-full-export-progress">Building export...</div>
     </section>
   </div>
 
@@ -376,6 +381,7 @@
   </section>
 
   <section class="card" id="interp-save-card" style="display:none;">
+    <div id="interp-save-status" class="interp-save-status">No interpretation saved for this audit yet</div>
     <button class="btn-gold btn-full" id="interp-save-btn">💾 Save Interpretation to Audit</button>
     <div style="margin-top:10px;border-top:1px solid var(--border);padding-top:10px;">
       <div class="card-sub" style="margin-bottom:6px;">After reviewing and correcting all fields above, submit to JotForm:</div>

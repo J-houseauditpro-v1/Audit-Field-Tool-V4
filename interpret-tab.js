@@ -761,6 +761,7 @@ END OF KNOWLEDGE DOC
 var interpretTabInitialized = false;
 var interpretLastParsed = null;
 var interpretLastMeta = null;
+var interpretDirty = false;
 
 // ── SETTINGS HELPERS ─────────────────────────────────────────
 function getInterpretApiKey() {
@@ -804,6 +805,67 @@ function appendLearnedRule(ruleText) {
   if (typeof toast === 'function') toast('Learned rule saved to knowledge doc.');
 }
 
+function clearInterpretSession() {
+  interpretLastParsed = null;
+  interpretLastMeta = null;
+  interpretDirty = false;
+  ['interp-flags-card', 'interp-output-card', 'interp-clar-card', 'interp-save-card'].forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) el.style.display = 'none';
+  });
+  var tokenEl = document.getElementById('interp-token-usage');
+  if (tokenEl) tokenEl.style.display = 'none';
+  updateInterpSaveStatus(false);
+}
+
+function hydrateInterpretFromSavedAudit() {
+  if (typeof S === 'undefined' || !S.auditId) return;
+  if (typeof getSaved !== 'function') return;
+  var rec = getSaved().find(function(a) { return a.id === S.auditId; });
+  if (!rec || !rec.interpretedOutput || !rec.interpretedOutput.fields) return;
+  interpretLastParsed = rec.interpretedOutput;
+  interpretLastMeta = rec.interpretedOutput.interpretMeta || null;
+  interpretDirty = false;
+}
+
+function refreshInterpretFromLoadedAudit() {
+  hydrateInterpretFromSavedAudit();
+  if (interpretLastParsed) {
+    renderInterpretOutput(interpretLastParsed);
+    renderInterpretClarifications(interpretLastParsed);
+    renderInterpretFlags(interpretLastParsed);
+    var saveCard = document.getElementById('interp-save-card');
+    if (saveCard) saveCard.style.display = 'block';
+    updateInterpSaveStatus(true);
+    if (interpretLastMeta) {
+      var tokenEl = document.getElementById('interp-token-usage');
+      if (tokenEl) {
+        var inTok = interpretLastMeta.input_tokens || 0;
+        var outTok = interpretLastMeta.output_tokens || 0;
+        tokenEl.textContent = 'Tokens: ' + inTok.toLocaleString() + ' in / ' + outTok.toLocaleString() + ' out — archived';
+        tokenEl.style.display = 'block';
+      }
+    }
+  } else {
+    clearInterpretSession();
+  }
+}
+
+function updateInterpSaveStatus(saved) {
+  var el = document.getElementById('interp-save-status');
+  if (!el) return;
+  if (saved && !interpretDirty) {
+    el.textContent = '✓ Interpretation saved with this audit';
+    el.classList.remove('unsaved');
+  } else if (interpretLastParsed) {
+    el.textContent = '● Unsaved changes — tap Save Interpretation';
+    el.classList.add('unsaved');
+  } else {
+    el.textContent = 'No interpretation saved for this audit yet';
+    el.classList.remove('unsaved');
+  }
+}
+
 // ── INTERPRET TAB INIT ────────────────────────────────────────
 function initInterpretTab() {
   renderInterpretInfo();
@@ -812,6 +874,7 @@ function initInterpretTab() {
     wireInterpretButtons();
     wireInterpretSettings();
   }
+  hydrateInterpretFromSavedAudit();
   // If a loaded audit has a saved interpretation, auto-render it
   if (interpretLastParsed) {
     renderInterpretOutput(interpretLastParsed);
@@ -819,6 +882,7 @@ function initInterpretTab() {
     renderInterpretFlags(interpretLastParsed);
     var saveCard = document.getElementById('interp-save-card');
     if (saveCard) saveCard.style.display = 'block';
+    updateInterpSaveStatus(true);
     if (interpretLastMeta) {
       var tokenEl = document.getElementById('interp-token-usage');
       if (tokenEl) {
@@ -1025,6 +1089,11 @@ function runInterpret() {
 
     var saveCard = document.getElementById('interp-save-card');
     if (saveCard) saveCard.style.display = 'block';
+    if (typeof persistAuditRecord === 'function' && (S.name || S.dump || (S.photos && S.photos.length))) {
+      persistAuditRecord();
+    }
+    persistInterpretationToAudit({ silent: true, message: 'Interpretation saved to audit record.' });
+    if (typeof toast === 'function') toast('Interpretation complete and saved to audit.');
   })
   .catch(function(err) {
     toast('Interpret error: ' + err.message);
@@ -1164,6 +1233,8 @@ function renderInterpretOutput(parsed) {
             appendLearnedRule(ruleText);
           }
         }
+        interpretDirty = true;
+        persistInterpretationToAudit({ silent: true });
       });
 
       // Save on Enter
@@ -1310,6 +1381,7 @@ function renderInterpretClarifications(parsed) {
       if (resolvedEl) resolvedEl.style.display = 'block';
 
       if (typeof toast === 'function') toast('Applied: ' + value.substring(0, 40));
+      persistInterpretationToAudit({ silent: true });
     });
   });
 
@@ -1330,34 +1402,45 @@ function renderInterpretFlags(parsed) {
 }
 
 // ── SAVE INTERPRETATION ───────────────────────────────────────
-function saveInterpretation(parsed) {
-  if (typeof S === 'undefined' || !S.auditId) {
-    toast('No active audit — load or save an audit first.');
-    return;
+function persistInterpretationToAudit(options) {
+  options = options || {};
+  if (typeof S === 'undefined' || !S.auditId || !interpretLastParsed) {
+    if (!options.silent) toast('No active audit or interpretation to save.');
+    return false;
   }
   try {
     var saved = typeof getSaved === 'function' ? getSaved() : JSON.parse(localStorage.getItem('aft_saved') || '[]');
     var idx = saved.findIndex(function(a) { return a.id === S.auditId; });
     if (idx < 0) {
-      toast('Audit not saved yet — save it first.');
-      return;
+      if (!options.silent) toast('Audit not saved yet — save it first.');
+      return false;
     }
     saved[idx].interpretedOutput = {
-      fields: parsed.fields || [],
-      clarifications: parsed.clarifications || [],
-      notes: parsed.notes || '',
-      interpretMeta: interpretLastMeta || {}
+      fields: interpretLastParsed.fields || [],
+      clarifications: interpretLastParsed.clarifications || [],
+      notes: interpretLastParsed.notes || '',
+      interpretMeta: interpretLastMeta || (saved[idx].interpretedOutput && saved[idx].interpretedOutput.interpretMeta) || {}
     };
     if (typeof setSaved === 'function') {
       setSaved(saved);
     } else {
       localStorage.setItem('aft_saved', JSON.stringify(saved));
     }
-    toast('Interpretation saved to audit record.');
+    interpretDirty = false;
+    updateInterpSaveStatus(true);
+    if (typeof renderAuditsList === 'function') renderAuditsList();
+    if (!options.silent) toast(options.message || 'Interpretation saved to audit record.');
+    return true;
   } catch(e) {
-    toast('Save error: ' + e.message);
+    if (!options.silent) toast('Save error: ' + e.message);
     console.error(e);
+    return false;
   }
+}
+
+function saveInterpretation(parsed) {
+  if (parsed) interpretLastParsed = parsed;
+  persistInterpretationToAudit({ silent: false, message: 'Interpretation saved to audit record.' });
 }
 
 // ── INTERPRET SETTINGS UI ─────────────────────────────────────
@@ -1628,6 +1711,7 @@ function openInterpArchive(id) {
   }
   interpretLastParsed = rec.interpretedOutput;
   interpretLastMeta = rec.interpretedOutput.interpretMeta || null;
+  interpretDirty = false;
 
   // Switch to Interpret tab
   document.querySelectorAll('.tab').forEach(function(b) { b.classList.remove('active'); });
@@ -1644,6 +1728,7 @@ function openInterpArchive(id) {
 
   var saveCard = document.getElementById('interp-save-card');
   if (saveCard) saveCard.style.display = 'block';
+  updateInterpSaveStatus(true);
 
   if (interpretLastMeta) {
     var tokenEl = document.getElementById('interp-token-usage');
