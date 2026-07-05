@@ -1888,6 +1888,8 @@ function persistAuditRecord() {
 
   var saved = getSaved();
   saveTCSignature();
+  var idx = saved.findIndex(function(a) { return a.id === id; });
+  var existing = idx >= 0 ? saved[idx] : null;
   var rec = {
     id: id,
     customer: { name: S.name, address: S.address, date: S.date, yearBuilt: S.year, sqFt: S.sqft, coop: S.coop },
@@ -1895,9 +1897,18 @@ function persistAuditRecord() {
     voiceDump: S.dump,
     photos: S.photos.slice(),
     savedAt: new Date().toISOString(),
-    source: 'AuditFieldTool'
+    source: (existing && existing.source) ? existing.source : 'AuditFieldTool'
   };
-  var idx = saved.findIndex(function(a) { return a.id === id; });
+  // Preserve fields autosave must not wipe (interpret output, legacy flags, etc.)
+  if (existing) {
+    if (existing.interpretedOutput) rec.interpretedOutput = existing.interpretedOutput;
+    if (existing.legacyImport) {
+      rec.legacyImport = true;
+      rec.legacyPhotoPdf = existing.legacyPhotoPdf;
+      rec.legacyTcPdf = existing.legacyTcPdf;
+    }
+    if (existing.photosNotImported) rec.photosNotImported = true;
+  }
   if (idx >= 0) saved[idx] = rec; else saved.unshift(rec);
   setSaved(saved);
   save();
@@ -2058,6 +2069,7 @@ function clearCurrent() {
   S.name = ''; S.address = ''; S.date = ''; S.year = ''; S.sqft = ''; S.coop = '';
   S.dump = ''; S.photos = []; S.auditId = null; S.tcSignature = null;
   clearTCSignature();
+  if (typeof clearInterpretSession === 'function') clearInterpretSession();
   save();
   fillFields();
   renderHeader();
@@ -2102,6 +2114,7 @@ function loadAudit(id) {
   document.querySelector('[data-tab="voice"]').classList.add('active');
   document.getElementById('tab-voice').style.display = 'block';
   toast('Loaded: ' + (S.name || 'audit'));
+  if (typeof refreshInterpretFromLoadedAudit === 'function') refreshInterpretFromLoadedAudit();
 }
 
 function deleteAudit(id) {
@@ -2120,6 +2133,7 @@ function deleteAudit(id) {
     S.auditId = null;
     S.tcSignature = null;
     clearTCSignature();
+    if (typeof clearInterpretSession === 'function') clearInterpretSession();
     save();
     fillFields();
     renderHeader();
@@ -2148,26 +2162,16 @@ function renderAuditsList() {
     var group = document.createElement('div');
     group.className = 'week-group';
 
-    var auditRows = week.audits.map(function(a) {
-      var name = a.customer.name || 'Unnamed';
-      var date = formatExportRowDate(a.customer.date || '—');
-      var photos = (a.photos || []).length;
-      var words = (a.voiceDump || '').trim().split(/\s+/).filter(Boolean).length;
-      var metaLine = a.legacyImport
-        ? (date + ' · ' + words + ' words · 📥 legacy import')
-        : (date + ' · ' + words + ' words · ' + photos + ' photos');
-      var interpBadge = a.interpretedOutput ? '<span class="interp-badge" title="Interpreted">⚡</span>' : '';
-      return '<div class="week-audit-row' + (a.id === S.auditId ? ' is-current' : '') + '">' +
-        '<div class="week-audit-info">' +
-          '<div class="week-audit-name">' + escapeHtml(name) + interpBadge + '</div>' +
-          '<div class="week-audit-meta">' + metaLine + '</div>' +
+    var daySections = week.days.map(function(day) {
+      var auditRows = day.audits.map(function(a) {
+        return renderAuditsListRow(a);
+      }).join('');
+      return '<div class="day-group">' +
+        '<div class="day-group-header">' +
+          '<span class="day-group-title">' + escapeHtml(day.label) + '</span>' +
+          '<span class="day-group-count">' + day.audits.length + ' audit' + (day.audits.length !== 1 ? 's' : '') + '</span>' +
         '</div>' +
-        '<div class="week-audit-btns">' +
-          '<button class="btn-xs load-btn" data-id="' + a.id + '">Load</button>' +
-          '<button class="btn-xs photos-btn" data-id="' + a.id + '">📷</button>' +
-          '<button class="btn-xs interp-view-btn" data-id="' + a.id + '"' + (a.interpretedOutput ? '' : ' style="display:none"') + ' title="View interpretation">⚡</button>' +
-          '<button class="btn-xs btn-danger-sm del-btn" data-id="' + a.id + '">🗑</button>' +
-        '</div>' +
+        auditRows +
       '</div>';
     }).join('');
 
@@ -2176,7 +2180,7 @@ function renderAuditsList() {
         '<span class="week-group-title">' + week.label + '</span>' +
         '<span class="week-group-count">' + week.audits.length + ' audit' + (week.audits.length !== 1 ? 's' : '') + '</span>' +
       '</div>' +
-      auditRows;
+      daySections;
 
     list.appendChild(group);
   });
@@ -2202,6 +2206,27 @@ function renderAuditsList() {
   });
 }
 
+function renderAuditsListRow(a) {
+  var name = a.customer.name || 'Unnamed';
+  var date = formatExportRowDate(a.customer.date || '—');
+  var metaLine = a.legacyImport
+    ? (date + ' · 📥 legacy import · ' + formatInterpretStatus(a))
+    : formatInterpretStatus(a);
+  var interpBadge = auditHasInterpretation(a) ? '<span class="interp-badge" title="Interpreted">⚡</span>' : '';
+  return '<div class="week-audit-row' + (a.id === S.auditId ? ' is-current' : '') + '">' +
+    '<div class="week-audit-info">' +
+      '<div class="week-audit-name">' + escapeHtml(name) + interpBadge + '</div>' +
+      '<div class="week-audit-meta">' + metaLine + '</div>' +
+    '</div>' +
+    '<div class="week-audit-btns">' +
+      '<button class="btn-xs load-btn" data-id="' + a.id + '">Load</button>' +
+      '<button class="btn-xs photos-btn" data-id="' + a.id + '">📷</button>' +
+      '<button class="btn-xs interp-view-btn" data-id="' + a.id + '"' + (auditHasInterpretation(a) ? '' : ' style="display:none"') + ' title="View interpretation">⚡</button>' +
+      '<button class="btn-xs btn-danger-sm del-btn" data-id="' + a.id + '">🗑</button>' +
+    '</div>' +
+  '</div>';
+}
+
 // ── EXPORT TAB ────────────────────────────────────────────────
 function initExportTab() {
   var btn = document.getElementById('export-full-backup-btn');
@@ -2209,6 +2234,13 @@ function initExportTab() {
     btn.addEventListener('click', function() {
       var progress = document.getElementById('export-full-backup-progress');
       exportFullBackup(progress);
+    });
+  }
+  var exportBtn = document.getElementById('export-full-export-btn');
+  if (exportBtn) {
+    exportBtn.addEventListener('click', function() {
+      var progress = document.getElementById('export-full-export-progress');
+      exportFullExport(progress);
     });
   }
 }
@@ -2293,6 +2325,84 @@ function buildAuditTextSummary(audit) {
   lines.push('Source: Audit Field Tool' + (audit.legacyImport ? ' (legacy import)' : ''));
 
   return lines.join('\n');
+}
+
+function buildInterpretTextSummary(audit) {
+  var io = audit.interpretedOutput;
+  if (!io) return '';
+  var line = function(n) { return new Array(n + 1).join('-'); };
+  var lines = [];
+
+  lines.push('INTERPRETATION OUTPUT');
+  lines.push(line(40));
+  if (io.interpretMeta && io.interpretMeta.interpretedAt) {
+    lines.push('Interpreted: ' + io.interpretMeta.interpretedAt);
+  }
+  if (io.interpretMeta && io.interpretMeta.model) {
+    lines.push('Model: ' + io.interpretMeta.model);
+  }
+  lines.push('');
+
+  if (io.notes && io.notes.trim()) {
+    lines.push(line(40));
+    lines.push('INTERPRETER NOTES');
+    lines.push(line(40));
+    lines.push(io.notes.trim());
+    lines.push('');
+  }
+
+  if (io.clarifications && io.clarifications.length) {
+    lines.push(line(40));
+    lines.push('CLARIFICATIONS');
+    lines.push(line(40));
+    io.clarifications.forEach(function(c, i) {
+      lines.push('');
+      lines.push('Q' + (i + 1) + ': ' + (c.question || ''));
+      if (c.fieldPage || c.fieldSection || c.fieldName) {
+        lines.push('Field: ' + [c.fieldPage, c.fieldSection, c.fieldName].filter(Boolean).join(' — '));
+      }
+      (c.options || []).forEach(function(opt) {
+        lines.push('  ' + (opt.label || '?') + ': ' + (opt.text || opt.value || ''));
+      });
+    });
+    lines.push('');
+  }
+
+  if (io.fields && io.fields.length) {
+    lines.push(line(40));
+    lines.push('FIELD OUTPUT');
+    lines.push(line(40));
+    var byPage = {};
+    io.fields.forEach(function(f) {
+      if (!byPage[f.page || 'Other']) byPage[f.page || 'Other'] = [];
+      byPage[f.page || 'Other'].push(f);
+    });
+    Object.keys(byPage).forEach(function(page) {
+      lines.push('');
+      lines.push('[' + page + ']');
+      byPage[page].forEach(function(f) {
+        lines.push('');
+        lines.push((f.section || '') + ' — ' + (f.field || ''));
+        lines.push('  ' + (f.value || ''));
+      });
+    });
+  }
+
+  return lines.join('\n');
+}
+
+function buildAuditExportFolderName(audit) {
+  var dateStr = (audit.customer && audit.customer.date) ? audit.customer.date : new Date().toISOString().split('T')[0];
+  var safeName = (audit.customer.name || 'audit').replace(/[^a-zA-Z0-9]/g, '-');
+  return dateStr + '_' + safeName;
+}
+
+function dataUrlToJpegBytes(dataUrl) {
+  if (!dataUrl || dataUrl.indexOf(',') === -1) return null;
+  var binary = atob(dataUrl.split(',')[1]);
+  var array = new Uint8Array(binary.length);
+  for (var i = 0; i < binary.length; i++) array[i] = binary.charCodeAt(i);
+  return array;
 }
 
 function buildRecord() {
@@ -2662,7 +2772,49 @@ function groupAuditsByWeek(audits) {
     }
     weeks[key].audits.push(a);
   });
-  return Object.values(weeks).sort(function(a, b) { return b.monday - a.monday; });
+  return Object.values(weeks).sort(function(a, b) { return b.monday - a.monday; }).map(function(week) {
+    week.days = groupAuditsIntoDays(week.audits);
+    return week;
+  });
+}
+
+function getAuditDateKey(audit) {
+  var dateStr = audit.customer && audit.customer.date ? audit.customer.date : null;
+  if (dateStr && /^\d{4}-\d{2}-\d{2}/.test(dateStr)) return dateStr.split('T')[0];
+  if (audit.savedAt) return audit.savedAt.split('T')[0];
+  return 'unknown';
+}
+
+function getDayLabel(dateKey) {
+  if (dateKey === 'unknown') return 'Date unknown';
+  var parts = dateKey.split('-');
+  var d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+  return d.toLocaleDateString('en-US', { weekday: 'long', month: 'numeric', day: 'numeric', year: '2-digit' });
+}
+
+function groupAuditsIntoDays(audits) {
+  var days = {};
+  audits.forEach(function(a) {
+    var key = getAuditDateKey(a);
+    if (!days[key]) days[key] = { dateKey: key, label: getDayLabel(key), audits: [] };
+    days[key].audits.push(a);
+  });
+  return Object.values(days).sort(function(a, b) {
+    if (a.dateKey === 'unknown') return 1;
+    if (b.dateKey === 'unknown') return -1;
+    return b.dateKey.localeCompare(a.dateKey);
+  });
+}
+
+function auditHasInterpretation(a) {
+  return !!(a.interpretedOutput && a.interpretedOutput.fields && a.interpretedOutput.fields.length);
+}
+
+function formatInterpretStatus(a) {
+  var ok = auditHasInterpretation(a);
+  var cls = ok ? 'interp-yes' : 'interp-no';
+  var label = ok ? 'Yes' : 'No';
+  return '<span class="audit-interp-status ' + cls + '"><span class="interp-status-dot">●</span> Interpreted? ' + label + '</span>';
 }
 
 function auditHasSignature(a) {
@@ -2702,6 +2854,7 @@ function formatExportRowMeta(a) {
     '<span class="export-meta-pill" title="Signature">✍️' + formatStatusDot(auditHasSignature(a)) + '</span>' +
     '<span class="export-meta-pill" title="Audit data"><span class="export-meta-aa">Aa</span>' + formatStatusDot(auditHasWords(a)) + '</span>' +
     '<span class="export-meta-pill" title="Photos">📷' + formatStatusDot(auditHasPhotos(a)) + '</span>' +
+    '<span class="export-meta-pill" title="Interpretation">⚡' + formatStatusDot(auditHasInterpretation(a)) + '</span>' +
     '</span>';
 }
 
@@ -2748,21 +2901,30 @@ function renderWeeklyBatches() {
     var group = document.createElement('div');
     group.className = 'week-group';
 
-    var auditRows = week.audits.map(function(a) {
-      var name = a.customer.name || 'Unnamed';
-      var metaLine = formatExportRowMeta(a);
-      return '<div class="week-audit-row week-export-row">' +
-        '<div class="week-export-main">' +
-          '<div class="week-audit-name">' + escapeHtml(name) + '</div>' +
-          '<div class="week-export-line2">' +
-            '<div class="week-audit-meta">' + metaLine + '</div>' +
-            '<div class="week-audit-btns">' +
-              '<button class="btn-xs row-json-btn" data-id="' + a.id + '">📦 JSON</button>' +
-              '<button class="btn-xs-gold row-pdf-btn" data-id="' + a.id + '">📷 PDF</button>' +
-              '<button class="btn-xs row-tc-btn" data-id="' + a.id + '">📋 T&C</button>' +
+    var daySections = week.days.map(function(day) {
+      var auditRows = day.audits.map(function(a) {
+        var name = a.customer.name || 'Unnamed';
+        var metaLine = formatExportRowMeta(a);
+        return '<div class="week-audit-row week-export-row">' +
+          '<div class="week-export-main">' +
+            '<div class="week-audit-name">' + escapeHtml(name) + '</div>' +
+            '<div class="week-export-line2">' +
+              '<div class="week-audit-meta">' + metaLine + '</div>' +
+              '<div class="week-audit-btns">' +
+                '<button class="btn-xs row-json-btn" data-id="' + a.id + '">📦 JSON</button>' +
+                '<button class="btn-xs-gold row-pdf-btn" data-id="' + a.id + '">📷 PDF</button>' +
+                '<button class="btn-xs row-tc-btn" data-id="' + a.id + '">📋 T&C</button>' +
+              '</div>' +
             '</div>' +
           '</div>' +
+        '</div>';
+      }).join('');
+      return '<div class="day-group">' +
+        '<div class="day-group-header">' +
+          '<span class="day-group-title">' + escapeHtml(day.label) + '</span>' +
+          '<span class="day-group-count">' + day.audits.length + ' audit' + (day.audits.length !== 1 ? 's' : '') + '</span>' +
         '</div>' +
+        auditRows +
       '</div>';
     }).join('');
 
@@ -2776,7 +2938,7 @@ function renderWeeklyBatches() {
         '<button class="btn-gold btn-full week-scheduler-btn">Weekly T&amp;C + Photos</button>' +
       '</div>' +
       '<div class="pdf-progress week-pdf-progress">Building bundle...</div>' +
-      auditRows;
+      daySections;
 
     container.appendChild(group);
 
@@ -2900,6 +3062,7 @@ function exportSavedPhotoPDF(audit, callback, blobMode) {
 
 var BACKUP_BUNDLE_FULL = 'full-backup';
 var BACKUP_BUNDLE_WEEKLY = 'weekly-backup';
+var EXPORT_BUNDLE_FULL = 'full-export';
 
 function buildFullAuditBackupRecord(audit) {
   return JSON.parse(JSON.stringify(audit));
@@ -3054,6 +3217,136 @@ function exportWeeklyBackup(week, progressEl) {
     progressEl: progressEl,
     downloadName: 'AFT_Weekly_Backup_' + weekStart + '.zip'
   });
+}
+
+function exportFullExport(progressEl) {
+  var saved = getSaved();
+  if (!saved.length) { toast('No saved audits to export'); return; }
+  if (typeof JSZip === 'undefined') { toast('Zip library not loaded — check internet connection'); return; }
+
+  var zip = new JSZip();
+  var manifest = {
+    bundleType: EXPORT_BUNDLE_FULL,
+    exportedAt: new Date().toISOString(),
+    source: 'AuditFieldTool',
+    version: 1,
+    auditCount: saved.length,
+    note: 'Human-readable export — not for app restore. Use Full Backup for restore.',
+    audits: []
+  };
+
+  var auditIndex = 0;
+  if (progressEl) {
+    progressEl.style.display = 'block';
+    progressEl.textContent = 'Building export — 0 / ' + saved.length;
+  }
+
+  function processNextAudit() {
+    if (auditIndex >= saved.length) {
+      zip.file('manifest.json', JSON.stringify(manifest, null, 2));
+      zip.file('README.txt',
+        'Audit Field Tool — Full Export\n\n' +
+        'This zip contains human-readable files: JPG photos, PDFs, and text summaries.\n' +
+        'It is NOT for restoring into the app — use Full Backup for that.\n\n' +
+        'Folder layout per audit:\n' +
+        '  audit-summary.txt — customer info, voice dump, photo notes\n' +
+        '  interpretation.txt — interpreter notes and field output (if run)\n' +
+        '  photos/ — individual JPG files\n' +
+        '  *-photos.pdf — photo PDF\n' +
+        '  *-TC.pdf — signed terms & conditions PDF\n'
+      );
+      if (progressEl) progressEl.textContent = 'Zipping export...';
+      zip.generateAsync({ type: 'blob' }).then(function(blob) {
+        var dateStr = new Date().toISOString().split('T')[0];
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = 'AFT_Full_Export_' + dateStr + '.zip';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        if (progressEl) progressEl.style.display = 'none';
+        toast('Full export ready — ' + saved.length + ' audit' + (saved.length !== 1 ? 's' : ''));
+      }).catch(function(e) {
+        if (progressEl) progressEl.style.display = 'none';
+        toast('Zip error: ' + e.message);
+        console.error('[FullExport] zip error:', e);
+      });
+      return;
+    }
+
+    var audit = saved[auditIndex];
+    var folderName = buildAuditExportFolderName(audit);
+    var auditFolder = zip.folder(folderName);
+    var baseFilename = folderName;
+    var entry = { id: audit.id, folder: folderName, photos: 0, photoPdf: false, tcPdf: false, interpreted: auditHasInterpretation(audit) };
+
+    if (progressEl) {
+      progressEl.textContent = 'Building export — ' + (auditIndex + 1) + ' / ' + saved.length + ': ' + (audit.customer.name || 'Unnamed');
+    }
+
+    auditFolder.file('audit-summary.txt', buildAuditTextSummary(audit));
+
+    if (auditHasInterpretation(audit)) {
+      auditFolder.file('interpretation.txt', buildInterpretTextSummary(audit));
+      auditFolder.file('interpretation.json', JSON.stringify(audit.interpretedOutput, null, 2));
+    }
+
+    function afterPdfs() {
+      manifest.audits.push(entry);
+      auditIndex++;
+      setTimeout(processNextAudit, 10);
+    }
+
+    function afterPhotos(photoRecords) {
+      var photosFolder = auditFolder.folder('photos');
+      photoRecords.forEach(function(photo, index) {
+        var bytes = dataUrlToJpegBytes(photo.dataUrl);
+        if (bytes) {
+          var cat = (photo.category || 'photo').replace(/[^a-zA-Z0-9_-]/g, '');
+          photosFolder.file((index + 1) + '_' + cat + '.jpg', bytes, { binary: true });
+          entry.photos++;
+        }
+      });
+
+      if (auditHasPhotos(audit)) {
+        exportSavedPhotoPDF(audit, function(blob) {
+          if (blob) {
+            auditFolder.file(baseFilename + '-photos.pdf', blob);
+            entry.photoPdf = true;
+          }
+          if (auditHasSignature(audit)) {
+            generateTCPDFFromRecord(audit, function(tcBlob) {
+              if (tcBlob) {
+                auditFolder.file(baseFilename + '-TC.pdf', tcBlob);
+                entry.tcPdf = true;
+              }
+              afterPdfs();
+            }, true);
+          } else {
+            afterPdfs();
+          }
+        }, true);
+      } else if (auditHasSignature(audit)) {
+        generateTCPDFFromRecord(audit, function(tcBlob) {
+          if (tcBlob) {
+            auditFolder.file(baseFilename + '-TC.pdf', tcBlob);
+            entry.tcPdf = true;
+          }
+          afterPdfs();
+        }, true);
+      } else {
+        afterPdfs();
+      }
+    }
+
+    collectBackupPhotosForAudit(audit, function(photoRecords) {
+      afterPhotos(photoRecords);
+    });
+  }
+
+  processNextAudit();
 }
 
 function initBackupRestore() {

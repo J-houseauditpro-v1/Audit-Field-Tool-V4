@@ -1675,6 +1675,61 @@ body.modal-open {
   background: rgba(232,167,0,0.15);
 }
 
+.day-group {
+  margin-top: 8px;
+  border-left: 2px solid rgba(201,168,76,0.35);
+  padding-left: 10px;
+}
+.day-group-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 0 4px;
+  margin-bottom: 4px;
+}
+.day-group-title {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--sub);
+}
+.day-group-count {
+  font-size: 0.72rem;
+  color: var(--sub);
+  opacity: 0.85;
+}
+#audits-list .day-group { margin-bottom: 6px; }
+#weekly-batches-container .day-group { margin-bottom: 8px; }
+
+.audit-interp-status {
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+.audit-interp-status .interp-status-dot {
+  font-size: 0.62rem;
+  margin-right: 2px;
+}
+.audit-interp-status.interp-yes {
+  color: #4caf50;
+}
+.audit-interp-status.interp-no {
+  color: #e03333;
+}
+
+.interp-save-status {
+  font-size: 0.82rem;
+  color: #4caf50;
+  margin-bottom: 10px;
+  padding: 8px 10px;
+  background: rgba(76,175,80,0.1);
+  border: 1px solid rgba(76,175,80,0.35);
+  border-radius: 8px;
+}
+.interp-save-status.unsaved {
+  color: var(--gold);
+  background: rgba(201,168,76,0.08);
+  border-color: rgba(201,168,76,0.35);
+}
+
 /* ── CUSTOMERS TAB ────────────────────────────────── */
 .customer-card {
   background: var(--card-bg, #1c1c1e);
