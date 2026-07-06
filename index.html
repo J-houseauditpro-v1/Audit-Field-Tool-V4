@@ -94,20 +94,50 @@
   <section class="card">
     <div class="card-title">🔍 Research</div>
     <div class="card-sub">Web research on each scheduled job address — review and edit results before forwarding to Audit.</div>
-    <p class="research-placeholder-text">
-      Each job from Schedule will get a Claude web search using the customer address. Results will appear here ranked by confidence (highest first), with the same review-and-edit workflow as Interpret field output.
-    </p>
-    <p class="research-placeholder-text">
-      After you review and correct the research, tap <b>Forward to Audit</b> to push findings into Research Notes and pre-fill customer info on the Audit tab.
-    </p>
-    <button type="button" class="btn-gold btn-full" id="research-run-btn" disabled style="margin-top:12px;opacity:0.5;">🔍 Run Research (coming soon)</button>
-    <button type="button" class="btn-outline btn-full" id="research-forward-btn" disabled style="margin-top:8px;opacity:0.5;">→ Forward to Audit (coming soon)</button>
+    <div id="research-no-key-warn" class="tc-warn" style="display:none;">⚠️ Add your Anthropic API key in More → Interpret Settings to run research.</div>
+    <div class="card-title" id="research-selected-title" style="font-size:0.95rem;margin-top:10px;">Select a job from the queue below</div>
+    <div class="card-sub" id="research-selected-meta"></div>
+    <button type="button" class="btn-gold btn-full" id="research-run-btn" style="margin-top:12px;">🔍 Run Research</button>
+    <button type="button" class="btn-outline btn-full" id="research-forward-btn" disabled style="margin-top:8px;opacity:0.5;">→ Forward to Audit</button>
+    <div id="research-token-usage" class="card-sub" style="display:none;margin-top:8px;"></div>
+  </section>
+
+  <section class="card" id="research-output-card" style="display:none">
+    <div class="row-between">
+      <div class="card-title">Research Results</div>
+      <button type="button" class="btn-sm" id="research-save-btn">Save Edits</button>
+    </div>
+    <div class="card-sub">Findings ranked by confidence — tap Edit on any row to correct before forwarding.</div>
+    <div id="research-findings-list"></div>
+    <div class="schedule-add-field" style="margin-top:12px;">
+      <label class="schedule-field-label" for="research-summary-edit">Summary</label>
+      <textarea class="field research-textarea" id="research-summary-edit" rows="3"></textarea>
+    </div>
+    <div class="card-title" style="font-size:0.9rem;margin-top:12px;">Pre-fill for Audit</div>
+    <div class="schedule-add-grid">
+      <div class="schedule-add-field">
+        <label class="schedule-field-label" for="research-prefill-year">Year Built</label>
+        <input class="field" id="research-prefill-year" type="text" inputmode="numeric">
+      </div>
+      <div class="schedule-add-field">
+        <label class="schedule-field-label" for="research-prefill-sqft">Sq Ft</label>
+        <input class="field" id="research-prefill-sqft" type="text" inputmode="numeric">
+      </div>
+      <div class="schedule-add-field schedule-add-field-grow">
+        <label class="schedule-field-label" for="research-prefill-coop">Co-op</label>
+        <input class="field" id="research-prefill-coop" type="text">
+      </div>
+    </div>
+    <div class="schedule-add-field" style="margin-top:8px;">
+      <label class="schedule-field-label" for="research-prefill-notes">General Notes for Field</label>
+      <textarea class="field research-textarea" id="research-prefill-notes" rows="4"></textarea>
+    </div>
   </section>
 
   <section class="card">
     <div class="card-title">Research Queue</div>
     <div class="card-sub">Organized by week and day — same layout as Archive.</div>
-    <div id="research-queue-list"><div class="empty-msg">No research results yet — pull jobs from Schedule first.</div></div>
+    <div id="research-queue-list"><div class="empty-msg">No jobs on Schedule — add jobs on the Schedule tab first.</div></div>
   </section>
 
 </div>
@@ -717,6 +747,7 @@
 <script src="notes-tab.js"></script>
 <script src="interpret-tab.js"></script>
 <script src="customers-tab.js"></script>
+<script src="research-tab.js"></script>
 <script src="script.js"></script>
 </body>
 </html>

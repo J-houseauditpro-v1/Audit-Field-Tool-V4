@@ -1850,6 +1850,105 @@ body.modal-open {
 .schedule-card-actions .customer-start-btn {
   margin-left: auto;
 }
+.schedule-status-badge {
+  font-size: 0.68rem;
+  font-weight: 600;
+  border-radius: 999px;
+  padding: 2px 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  line-height: 1.4;
+}
+.schedule-status-badge.status-ready {
+  color: #8ab4f8;
+  background: rgba(138,180,248,0.12);
+  border: 1px solid rgba(138,180,248,0.35);
+}
+.schedule-status-badge.status-in_progress {
+  color: #ffcc00;
+  background: rgba(255,204,0,0.12);
+  border: 1px solid rgba(255,204,0,0.35);
+}
+.schedule-status-badge.status-interpreted {
+  color: #c9a84c;
+  background: rgba(201,168,76,0.15);
+  border: 1px solid rgba(201,168,76,0.4);
+}
+.schedule-status-badge.status-complete {
+  color: #4caf50;
+  background: rgba(76,175,80,0.12);
+  border: 1px solid rgba(76,175,80,0.35);
+}
+
+/* ── RESEARCH TAB ─────────────────────────────────── */
+.research-queue-row {
+  cursor: pointer;
+}
+.research-has-results {
+  color: #4caf50;
+  font-size: 0.78rem;
+  margin-left: 6px;
+}
+.research-no-results {
+  color: var(--sub);
+  font-size: 0.78rem;
+  margin-left: 6px;
+}
+.research-textarea {
+  width: 100%;
+  min-height: 72px;
+  resize: vertical;
+}
+.research-finding-row {
+  border-bottom: 1px solid var(--border);
+  padding: 10px 0;
+}
+.research-finding-row:last-child { border-bottom: none; }
+.research-finding-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.research-finding-topic {
+  flex: 1;
+  font-weight: 600;
+  font-size: 0.88rem;
+}
+.research-confidence {
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  border-radius: 4px;
+  padding: 2px 6px;
+}
+.research-confidence.conf-high {
+  color: #4caf50;
+  background: rgba(76,175,80,0.15);
+}
+.research-confidence.conf-medium {
+  color: #ffcc00;
+  background: rgba(255,204,0,0.12);
+}
+.research-confidence.conf-low {
+  color: #e03333;
+  background: rgba(224,51,51,0.12);
+}
+.research-finding-value {
+  font-size: 0.86rem;
+  color: var(--text);
+  line-height: 1.4;
+}
+.research-finding-source {
+  font-size: 0.72rem;
+  color: var(--sub);
+  margin-top: 4px;
+}
+.research-notes-body {
+  font-size: 0.86rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
 
 /* ── CUSTOMERS / SCHEDULE CARDS ────────────────────────────────── */
 .customer-card {

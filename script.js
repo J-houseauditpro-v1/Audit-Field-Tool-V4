@@ -6,6 +6,8 @@
 var S = {
   name: '', address: '', date: '', year: '', sqft: '', coop: '',
   customerNumber: null,
+  scheduleJobId: null,
+  researchNotes: '',
   dump: '',
   photos: [],       // [{id, auditId, note, category, ts}]
   auditId: null,
@@ -550,7 +552,9 @@ function isVoiceSubActive() {
 
 function runSubTabInit(main, sub) {
   if (main === 'jobs' && sub === 'schedule' && typeof initCustomersTab === 'function') initCustomersTab();
+  if (main === 'jobs' && sub === 'research' && typeof initResearchTab === 'function') initResearchTab();
   if (main === 'audit' && sub === 'voice' && typeof renderPhotoNotesSummary === 'function') renderPhotoNotesSummary();
+  if (main === 'audit' && sub === 'voice' && typeof renderResearchNotesSummary === 'function') renderResearchNotesSummary();
   if (main === 'audit' && sub === 'tc' && typeof renderTCInfo === 'function') renderTCInfo();
   if (main === 'audit' && sub === 'photos') positionPhotoStickyControls();
   if (main === 'processing' && sub === 'archive' && typeof renderAuditsList === 'function') renderAuditsList();
@@ -867,6 +871,17 @@ function renderPhotoNotesSummary() {
       items +
     '</div>';
   }).join('');
+}
+
+function renderResearchNotesSummary() {
+  var el = document.getElementById('research-notes-summary');
+  if (!el) return;
+  var notes = (typeof S !== 'undefined' && S.researchNotes) ? S.researchNotes.trim() : '';
+  if (!notes) {
+    el.innerHTML = '<div class="empty-msg">No research notes yet</div>';
+    return;
+  }
+  el.innerHTML = '<div class="research-notes-body">' + escapeHtml(notes).replace(/\n/g, '<br>') + '</div>';
 }
 
 // ── PHOTOS ────────────────────────────────────────────────────
@@ -1967,7 +1982,17 @@ function persistAuditRecord() {
   var existing = idx >= 0 ? saved[idx] : null;
   var rec = {
     id: id,
-    customer: { name: S.name, address: S.address, date: S.date, yearBuilt: S.year, sqFt: S.sqft, coop: S.coop },
+    customer: {
+      name: S.name,
+      address: S.address,
+      date: S.date,
+      yearBuilt: S.year,
+      sqFt: S.sqft,
+      coop: S.coop,
+      customerNumber: S.customerNumber
+    },
+    scheduleJobId: S.scheduleJobId || null,
+    researchNotes: S.researchNotes || '',
     tcSignature: S.tcSignature || null,
     voiceDump: S.dump,
     photos: S.photos.slice(),
@@ -1983,10 +2008,15 @@ function persistAuditRecord() {
       rec.legacyTcPdf = existing.legacyTcPdf;
     }
     if (existing.photosNotImported) rec.photosNotImported = true;
+    if (!rec.scheduleJobId && existing.scheduleJobId) rec.scheduleJobId = existing.scheduleJobId;
+    if (!rec.researchNotes && existing.researchNotes) rec.researchNotes = existing.researchNotes;
   }
   if (idx >= 0) saved[idx] = rec; else saved.unshift(rec);
   setSaved(saved);
   save();
+  if (rec.scheduleJobId && typeof linkScheduleJobToAudit === 'function') {
+    linkScheduleJobToAudit(rec.scheduleJobId, id);
+  }
   renderAuditsList();
 }
 
@@ -2143,6 +2173,8 @@ function clearCurrent() {
   stopVoiceRec();
   S.name = ''; S.address = ''; S.date = ''; S.year = ''; S.sqft = ''; S.coop = '';
   S.customerNumber = null;
+  S.scheduleJobId = null;
+  S.researchNotes = '';
   S.dump = ''; S.photos = []; S.auditId = null; S.tcSignature = null;
   clearTCSignature();
   if (typeof clearInterpretSession === 'function') clearInterpretSession();
@@ -2151,6 +2183,7 @@ function clearCurrent() {
   renderHeader();
   renderVoiceDump();
   renderPhotoList();
+  if (typeof renderResearchNotesSummary === 'function') renderResearchNotesSummary();
   renderExportSummary();
   toast('New audit started');
 }
@@ -2165,6 +2198,9 @@ function loadAudit(id) {
   S.year = rec.customer.yearBuilt || '';
   S.sqft = rec.customer.sqFt || '';
   S.coop = rec.customer.coop || '';
+  S.customerNumber = rec.customer.customerNumber != null ? rec.customer.customerNumber : null;
+  S.scheduleJobId = rec.scheduleJobId || null;
+  S.researchNotes = rec.researchNotes || '';
   S.dump = rec.voiceDump || '';
   S.photos = rec.photos || [];
   S.auditId = rec.id;
@@ -2185,6 +2221,7 @@ function loadAudit(id) {
   renderVoiceDump();
   renderPhotoList();
   renderTCInfo();
+  if (typeof renderResearchNotesSummary === 'function') renderResearchNotesSummary();
   switchMainTab('audit', 'voice');
   toast('Loaded: ' + (S.name || 'audit'));
   if (typeof refreshInterpretFromLoadedAudit === 'function') refreshInterpretFromLoadedAudit();
@@ -2202,6 +2239,8 @@ function deleteAudit(id) {
     S.sqft = '';
     S.coop = '';
     S.customerNumber = null;
+    S.scheduleJobId = null;
+    S.researchNotes = '';
     S.dump = '';
     S.photos = [];
     S.auditId = null;
