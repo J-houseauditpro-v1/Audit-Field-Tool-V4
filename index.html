@@ -55,16 +55,35 @@
   <section class="card">
     <div class="row-between" style="margin-bottom:10px;">
       <div class="card-title" style="margin-bottom:0;">📅 Schedule</div>
-      <button class="btn-gold btn-sm" id="customers-refresh-btn">🔄 Refresh</button>
+      <button class="btn-gold btn-sm" id="customers-refresh-btn">🔄 Sheets</button>
     </div>
-    <div class="card-sub">Scheduled jobs from Google Sheets. Tap Start Audit to begin the research pass.</div>
-    <input class="field" id="customers-search" type="search" placeholder="Search by name, address…" style="width:100%;margin-top:8px;">
+    <div class="card-sub">Add jobs manually or import from Google Sheets. Customer # + address are used for research — name is for your reference only.</div>
+    <input class="field" id="customers-search" type="search" placeholder="Search by #, name, or address…" style="width:100%;margin-top:8px;">
     <div id="customers-fetch-status" style="font-size:0.8rem;margin-top:6px;display:none;"></div>
     <div id="customers-cache-note" class="card-sub" style="margin-top:4px;display:none;"></div>
   </section>
 
+  <section class="card" id="schedule-add-card">
+    <div class="card-title" style="margin-bottom:6px;">+ Add Job</div>
+    <div class="schedule-add-grid">
+      <div class="schedule-add-field schedule-add-number-wrap">
+        <label class="schedule-field-label" for="schedule-add-number">Customer #</label>
+        <input class="field" id="schedule-add-number" type="number" min="1" inputmode="numeric" autocomplete="off">
+      </div>
+      <div class="schedule-add-field schedule-add-field-grow">
+        <label class="schedule-field-label" for="schedule-add-name">Name</label>
+        <input class="field" id="schedule-add-name" type="text" placeholder="Customer name" autocomplete="off">
+      </div>
+    </div>
+    <div class="schedule-add-field" style="margin-top:8px;">
+      <label class="schedule-field-label" for="schedule-add-address">Address</label>
+      <input class="field schedule-add-address-input" id="schedule-add-address" type="text" placeholder="Street address" autocomplete="off">
+    </div>
+    <button type="button" class="btn-gold btn-full" id="schedule-add-btn" style="margin-top:10px;">Add to Schedule</button>
+  </section>
+
   <div id="customers-list">
-    <div class="empty-msg">No customers yet — tap Refresh to fetch from Google Sheets</div>
+    <div class="empty-msg">No jobs yet — add one above or import from Google Sheets</div>
   </div>
 
 </div>

@@ -1,13 +1,14 @@
-// ── CUSTOMERS TAB ─────────────────────────────────────────────
-// Fetches customer data from a Google Sheets spreadsheet via the
-// Sheets API v4. Configured in More → Settings (sheet ID, range,
-// API key, column mapping). Results are cached in localStorage so
-// the tab works offline after the first successful fetch.
+// ── SCHEDULE TAB (Jobs → Schedule) ───────────────────────────
+// Manual job list with customer #, name, and address.
+// Research pass will use customerNumber + address only (not name).
 
 var customersTabInitialized = false;
-var customersData = []; // current in-memory list
+var scheduleJobs = [];
+var scheduleEditingId = null;
 
-// ── SETTINGS HELPERS ─────────────────────────────────────────
+var SCHEDULE_STORAGE_KEY = 'aft_schedule_jobs';
+
+// ── SETTINGS HELPERS (Google Sheets import) ───────────────────
 function getSheetId()   { return localStorage.getItem('aft_gs_sheet_id')   || ''; }
 function setSheetId(v)  { localStorage.setItem('aft_gs_sheet_id', v); }
 function getSheetRange(){ return localStorage.getItem('aft_gs_range')       || 'Sheet1!A1:Z200'; }
@@ -15,7 +16,6 @@ function setSheetRange(v){ localStorage.setItem('aft_gs_range', v); }
 function getSheetApiKey(){ return localStorage.getItem('aft_gs_api_key')    || ''; }
 function setSheetApiKey(v){ localStorage.setItem('aft_gs_api_key', v); }
 
-// Column mapping — each value is a 0-based column index (or '' if not mapped)
 function getColMap() {
   try { return JSON.parse(localStorage.getItem('aft_gs_col_map') || 'null') || getDefaultColMap(); }
   catch(e) { return getDefaultColMap(); }
@@ -25,7 +25,6 @@ function getDefaultColMap() {
   return { name: 0, address: 1, date: 2, coop: 3, year: 4, sqft: 5 };
 }
 
-// Cached customer list
 function getCustomersCache() {
   try { return JSON.parse(localStorage.getItem('aft_customers_cache') || 'null') || null; }
   catch(e) { return null; }
@@ -37,13 +36,105 @@ function setCustomersCache(data) {
   }));
 }
 
+// ── SCHEDULE JOB STORAGE ──────────────────────────────────────
+function newScheduleJobId() {
+  return 'job-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8);
+}
+
+function getNextCustomerNumber(jobs) {
+  if (!jobs || !jobs.length) return 1;
+  var max = 0;
+  jobs.forEach(function(j) {
+    var n = parseInt(j.customerNumber, 10);
+    if (!isNaN(n) && n > max) max = n;
+  });
+  return max + 1;
+}
+
+function normalizeScheduleJob(raw) {
+  return {
+    id: raw.id || newScheduleJobId(),
+    customerNumber: parseInt(raw.customerNumber, 10) || 1,
+    name: (raw.name || '').trim(),
+    address: (raw.address || '').trim(),
+    date: raw.date || '',
+    coop: raw.coop || '',
+    year: raw.year || '',
+    sqft: raw.sqft || '',
+    source: raw.source || 'manual',
+    createdAt: raw.createdAt || new Date().toISOString()
+  };
+}
+
+function loadScheduleJobs() {
+  try {
+    var raw = localStorage.getItem(SCHEDULE_STORAGE_KEY);
+    if (raw) {
+      var arr = JSON.parse(raw);
+      if (Array.isArray(arr)) return arr.map(normalizeScheduleJob);
+    }
+  } catch(e) {}
+  var cache = getCustomersCache();
+  if (cache && Array.isArray(cache.rows) && cache.rows.length) {
+    var migrated = cache.rows.map(function(r, i) {
+      return normalizeScheduleJob({
+        id: newScheduleJobId(),
+        customerNumber: i + 1,
+        name: r.name,
+        address: r.address,
+        date: r.date,
+        coop: r.coop,
+        year: r.year,
+        sqft: r.sqft,
+        source: 'sheets',
+        createdAt: cache.fetchedAt || new Date().toISOString()
+      });
+    });
+    saveScheduleJobs(migrated);
+    return migrated;
+  }
+  return [];
+}
+
+function saveScheduleJobs(jobs) {
+  scheduleJobs = jobs;
+  localStorage.setItem(SCHEDULE_STORAGE_KEY, JSON.stringify(jobs));
+}
+
+function getScheduleJobs() {
+  if (!scheduleJobs.length) scheduleJobs = loadScheduleJobs();
+  return scheduleJobs;
+}
+
+// Payload for future research API — name intentionally excluded
+function getResearchJobPayload(job) {
+  if (!job) return null;
+  return {
+    customerNumber: job.customerNumber,
+    address: job.address
+  };
+}
+
+function addressKey(addr) {
+  return (addr || '').trim().toLowerCase();
+}
+
 // ── INIT ──────────────────────────────────────────────────────
 function initCustomersTab() {
   if (!customersTabInitialized) {
     customersTabInitialized = true;
     wireCustomersTab();
   }
-  loadCachedCustomers();
+  scheduleJobs = loadScheduleJobs();
+  scheduleEditingId = null;
+  refreshScheduleAddForm();
+  renderCustomersList(scheduleJobs, getScheduleSearchFilter());
+  updateScheduleCacheNote();
+}
+
+function getScheduleSearchFilter() {
+  var searchInput = document.getElementById('customers-search');
+  return searchInput ? searchInput.value.trim().toLowerCase() : '';
 }
 
 function wireCustomersTab() {
@@ -53,23 +144,90 @@ function wireCustomersTab() {
   var searchInput = document.getElementById('customers-search');
   if (searchInput) {
     searchInput.addEventListener('input', function() {
-      renderCustomersList(customersData, searchInput.value.trim().toLowerCase());
+      renderCustomersList(getScheduleJobs(), searchInput.value.trim().toLowerCase());
+    });
+  }
+
+  var addBtn = document.getElementById('schedule-add-btn');
+  if (addBtn) addBtn.addEventListener('click', addManualScheduleJob);
+
+  var addAddress = document.getElementById('schedule-add-address');
+  if (addAddress) {
+    addAddress.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') addManualScheduleJob();
     });
   }
 }
 
-function loadCachedCustomers() {
+function refreshScheduleAddForm() {
+  var numInput = document.getElementById('schedule-add-number');
+  if (numInput) numInput.value = getNextCustomerNumber(getScheduleJobs());
+}
+
+function updateScheduleCacheNote() {
   var cache = getCustomersCache();
-  if (cache && Array.isArray(cache.rows) && cache.rows.length) {
-    customersData = cache.rows;
-    var lastFetch = cache.fetchedAt ? new Date(cache.fetchedAt).toLocaleDateString() : '?';
-    var noteEl = document.getElementById('customers-cache-note');
-    if (noteEl) { noteEl.textContent = 'Last synced: ' + lastFetch; noteEl.style.display = 'block'; }
-    renderCustomersList(customersData, '');
+  var noteEl = document.getElementById('customers-cache-note');
+  if (!noteEl) return;
+  if (cache && cache.fetchedAt) {
+    noteEl.textContent = 'Sheets last synced: ' + new Date(cache.fetchedAt).toLocaleDateString();
+    noteEl.style.display = 'block';
   } else {
-    var listEl = document.getElementById('customers-list');
-    if (listEl) listEl.innerHTML = '<div class="empty-msg">No customers yet — tap Refresh to fetch from Google Sheets</div>';
+    noteEl.style.display = 'none';
   }
+}
+
+function addManualScheduleJob() {
+  var numInput = document.getElementById('schedule-add-number');
+  var nameInput = document.getElementById('schedule-add-name');
+  var addrInput = document.getElementById('schedule-add-address');
+  var name = nameInput ? nameInput.value.trim() : '';
+  var address = addrInput ? addrInput.value.trim() : '';
+  if (!name) { toast('Enter a customer name.'); return; }
+  if (!address) { toast('Enter an address.'); return; }
+
+  var jobs = getScheduleJobs().slice();
+  var num = numInput ? parseInt(numInput.value, 10) : NaN;
+  if (isNaN(num) || num < 1) num = getNextCustomerNumber(jobs);
+
+  jobs.push(normalizeScheduleJob({
+    id: newScheduleJobId(),
+    customerNumber: num,
+    name: name,
+    address: address,
+    source: 'manual',
+    createdAt: new Date().toISOString()
+  }));
+  saveScheduleJobs(jobs);
+
+  if (nameInput) nameInput.value = '';
+  if (addrInput) addrInput.value = '';
+  refreshScheduleAddForm();
+  renderCustomersList(jobs, getScheduleSearchFilter());
+  toast('Added customer #' + num);
+}
+
+function updateScheduleJob(id, updates) {
+  var jobs = getScheduleJobs().slice();
+  var idx = jobs.findIndex(function(j) { return j.id === id; });
+  if (idx < 0) return false;
+  var job = jobs[idx];
+  if (updates.customerNumber !== undefined) {
+    var n = parseInt(updates.customerNumber, 10);
+    job.customerNumber = (!isNaN(n) && n >= 1) ? n : job.customerNumber;
+  }
+  if (updates.name !== undefined) job.name = updates.name.trim();
+  if (updates.address !== undefined) job.address = updates.address.trim();
+  jobs[idx] = job;
+  saveScheduleJobs(jobs);
+  return true;
+}
+
+function deleteScheduleJob(id) {
+  var jobs = getScheduleJobs().filter(function(j) { return j.id !== id; });
+  saveScheduleJobs(jobs);
+  scheduleEditingId = null;
+  renderCustomersList(jobs, getScheduleSearchFilter());
+  refreshScheduleAddForm();
 }
 
 // ── FETCH FROM GOOGLE SHEETS ─────────────────────────────────
@@ -77,11 +235,11 @@ function fetchCustomersFromSheets() {
   var sheetId  = getSheetId();
   var range    = getSheetRange();
   var apiKey   = getSheetApiKey();
-  if (!sheetId)  { toast('Add Spreadsheet ID in More → Google Sheets Settings.'); return; }
-  if (!apiKey)   { toast('Add Google Sheets API Key in More → Google Sheets Settings.'); return; }
+  if (!sheetId)  { toast('Add Spreadsheet ID in Settings → Google Sheets.'); return; }
+  if (!apiKey)   { toast('Add Google Sheets API Key in Settings → Google Sheets.'); return; }
 
   var refreshBtn = document.getElementById('customers-refresh-btn');
-  if (refreshBtn) { refreshBtn.disabled = true; refreshBtn.textContent = '⏳ Fetching…'; }
+  if (refreshBtn) { refreshBtn.disabled = true; refreshBtn.textContent = '⏳ …'; }
   var statusEl = document.getElementById('customers-fetch-status');
   if (statusEl) { statusEl.textContent = ''; statusEl.style.display = 'none'; }
 
@@ -97,14 +255,11 @@ function fetchCustomersFromSheets() {
     .then(function(data) {
       var values = data.values || [];
       if (!values.length) { toast('Sheet is empty or range has no data.'); return; }
-      var headers = values[0];
-      var rows = parseSheetRows(values.slice(1), headers);
-      customersData = rows;
+      var rows = parseSheetRows(values.slice(1), values[0]);
       setCustomersCache(rows);
-      var noteEl = document.getElementById('customers-cache-note');
-      if (noteEl) { noteEl.textContent = 'Last synced: ' + new Date().toLocaleDateString(); noteEl.style.display = 'block'; }
-      renderCustomersList(rows, '');
-      toast('Loaded ' + rows.length + ' customer' + (rows.length !== 1 ? 's' : '') + ' from Sheets');
+      mergeSheetRowsIntoSchedule(rows);
+      updateScheduleCacheNote();
+      toast('Imported ' + rows.length + ' row' + (rows.length !== 1 ? 's' : '') + ' from Sheets');
     })
     .catch(function(e) {
       var msg = 'Sheets fetch failed: ' + e.message;
@@ -112,8 +267,49 @@ function fetchCustomersFromSheets() {
       toast(msg);
     })
     .finally(function() {
-      if (refreshBtn) { refreshBtn.disabled = false; refreshBtn.textContent = '🔄 Refresh'; }
+      if (refreshBtn) { refreshBtn.disabled = false; refreshBtn.textContent = '🔄 Sheets'; }
     });
+}
+
+function mergeSheetRowsIntoSchedule(sheetRows) {
+  var jobs = getScheduleJobs().slice();
+  var added = 0;
+  var updated = 0;
+
+  sheetRows.forEach(function(row) {
+    if (!row.address && !row.name) return;
+    var key = addressKey(row.address);
+    var existing = jobs.find(function(j) {
+      return addressKey(j.address) === key && key;
+    });
+    if (existing) {
+      existing.name = row.name || existing.name;
+      existing.date = row.date || existing.date;
+      existing.coop = row.coop || existing.coop;
+      existing.year = row.year || existing.year;
+      existing.sqft = row.sqft || existing.sqft;
+      if (existing.source !== 'manual') existing.source = 'sheets';
+      updated++;
+    } else {
+      jobs.push(normalizeScheduleJob({
+        id: newScheduleJobId(),
+        customerNumber: getNextCustomerNumber(jobs),
+        name: row.name,
+        address: row.address,
+        date: row.date,
+        coop: row.coop,
+        year: row.year,
+        sqft: row.sqft,
+        source: 'sheets',
+        createdAt: new Date().toISOString()
+      }));
+      added++;
+    }
+  });
+
+  saveScheduleJobs(jobs);
+  renderCustomersList(jobs, getScheduleSearchFilter());
+  refreshScheduleAddForm();
 }
 
 function parseSheetRows(rows, headers) {
@@ -137,45 +333,127 @@ function parseSheetRows(rows, headers) {
 }
 
 // ── RENDER LIST ───────────────────────────────────────────────
+function jobMatchesFilter(job, filter) {
+  if (!filter) return true;
+  var hay = [
+    String(job.customerNumber),
+    '#' + job.customerNumber,
+    job.name,
+    job.address,
+    job.coop
+  ].join(' ').toLowerCase();
+  return hay.indexOf(filter) !== -1;
+}
+
 function renderCustomersList(rows, filter) {
   var listEl = document.getElementById('customers-list');
   if (!listEl) return;
-  var filtered = filter
-    ? rows.filter(function(r) {
-        return (r.name + ' ' + r.address + ' ' + r.coop).toLowerCase().includes(filter);
-      })
-    : rows;
+  var jobs = rows || getScheduleJobs();
+  var filtered = filter ? jobs.filter(function(j) { return jobMatchesFilter(j, filter); }) : jobs;
 
   if (!filtered.length) {
     listEl.innerHTML = filter
-      ? '<div class="empty-msg">No customers match "' + escapeHtmlC(filter) + '"</div>'
-      : '<div class="empty-msg">No customers found</div>';
+      ? '<div class="empty-msg">No jobs match "' + escapeHtmlC(filter) + '"</div>'
+      : '<div class="empty-msg">No jobs yet — add one above or import from Google Sheets</div>';
     return;
   }
 
-  listEl.innerHTML = filtered.map(function(r) {
-    var idx = rows.indexOf(r);
-    return '<div class="customer-card" data-idx="' + idx + '">' +
-      '<div class="customer-card-name">' + escapeHtmlC(r.name || '—') + '</div>' +
-      '<div class="customer-card-meta">' +
-        (r.address ? '<span>' + escapeHtmlC(r.address) + '</span>' : '') +
-        (r.date    ? '<span class="customer-card-date">' + escapeHtmlC(r.date) + '</span>' : '') +
-        (r.coop    ? '<span class="customer-card-coop">' + escapeHtmlC(r.coop) + '</span>' : '') +
-      '</div>' +
-      '<button class="btn-gold btn-sm customer-start-btn" data-idx="' + idx + '">Start Audit →</button>' +
-    '</div>';
+  listEl.innerHTML = filtered.map(function(job) {
+    if (scheduleEditingId === job.id) return renderScheduleEditCard(job);
+    return renderScheduleViewCard(job);
   }).join('');
 
   listEl.querySelectorAll('.customer-start-btn').forEach(function(btn) {
     btn.addEventListener('click', function() {
-      var idx = parseInt(btn.dataset.idx, 10);
-      if (!isNaN(idx) && rows[idx]) startAuditFromCustomer(rows[idx]);
+      var id = btn.dataset.id;
+      var job = jobs.find(function(j) { return j.id === id; });
+      if (job) startAuditFromCustomer(job);
+    });
+  });
+  listEl.querySelectorAll('.schedule-edit-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      scheduleEditingId = btn.dataset.id;
+      renderCustomersList(jobs, filter);
+    });
+  });
+  listEl.querySelectorAll('.schedule-delete-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var id = btn.dataset.id;
+      var job = jobs.find(function(j) { return j.id === id; });
+      var label = job ? ('#' + job.customerNumber + ' ' + (job.name || 'job')) : 'this job';
+      if (confirm('Delete ' + label + ' from schedule?')) deleteScheduleJob(id);
+    });
+  });
+  listEl.querySelectorAll('.schedule-save-edit-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var id = btn.dataset.id;
+      var card = btn.closest('.schedule-edit-card');
+      if (!card) return;
+      var num = parseInt(card.querySelector('.schedule-edit-number').value, 10);
+      var name = card.querySelector('.schedule-edit-name').value;
+      var address = card.querySelector('.schedule-edit-address').value;
+      if (!name.trim()) { toast('Name is required.'); return; }
+      if (!address.trim()) { toast('Address is required.'); return; }
+      updateScheduleJob(id, { customerNumber: num, name: name, address: address });
+      scheduleEditingId = null;
+      renderCustomersList(getScheduleJobs(), filter);
+      refreshScheduleAddForm();
+      toast('Saved customer #' + (isNaN(num) ? '?' : num));
+    });
+  });
+  listEl.querySelectorAll('.schedule-cancel-edit-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      scheduleEditingId = null;
+      renderCustomersList(jobs, filter);
     });
   });
 }
 
-// escapeHtml is also defined in script.js — use that version when available,
-// otherwise fall back to the local one (e.g. during isolated testing)
+function renderScheduleViewCard(job) {
+  var sourceTag = job.source === 'sheets'
+    ? '<span class="schedule-source-tag">Sheets</span>'
+    : '<span class="schedule-source-tag manual">Manual</span>';
+  return '<div class="customer-card schedule-job-card" data-id="' + escapeHtmlC(job.id) + '">' +
+    '<div class="schedule-card-top">' +
+      '<span class="schedule-customer-num">#' + escapeHtmlC(String(job.customerNumber)) + '</span>' +
+      '<div class="customer-card-name">' + escapeHtmlC(job.name || '—') + '</div>' +
+      sourceTag +
+    '</div>' +
+    '<div class="customer-card-meta schedule-card-address">' +
+      '<span>' + escapeHtmlC(job.address || '—') + '</span>' +
+    '</div>' +
+    '<div class="schedule-card-actions">' +
+      '<button type="button" class="btn-sm schedule-edit-btn" data-id="' + escapeHtmlC(job.id) + '">Edit</button>' +
+      '<button type="button" class="btn-sm btn-danger-sm schedule-delete-btn" data-id="' + escapeHtmlC(job.id) + '">Delete</button>' +
+      '<button type="button" class="btn-gold btn-sm customer-start-btn" data-id="' + escapeHtmlC(job.id) + '">Start Audit →</button>' +
+    '</div>' +
+  '</div>';
+}
+
+function renderScheduleEditCard(job) {
+  return '<div class="customer-card schedule-job-card schedule-edit-card" data-id="' + escapeHtmlC(job.id) + '">' +
+    '<div class="card-title" style="margin-bottom:8px;font-size:0.9rem;">Edit Job</div>' +
+    '<div class="schedule-add-grid">' +
+      '<div class="schedule-add-field schedule-add-number-wrap">' +
+        '<label class="schedule-field-label">Customer #</label>' +
+        '<input class="field schedule-edit-number" type="number" min="1" value="' + escapeHtmlC(String(job.customerNumber)) + '">' +
+      '</div>' +
+      '<div class="schedule-add-field schedule-add-field-grow">' +
+        '<label class="schedule-field-label">Name</label>' +
+        '<input class="field schedule-edit-name" type="text" value="' + escapeHtmlC(job.name) + '">' +
+      '</div>' +
+    '</div>' +
+    '<div class="schedule-add-field" style="margin-top:8px;">' +
+      '<label class="schedule-field-label">Address</label>' +
+      '<input class="field schedule-edit-address schedule-add-address-input" type="text" value="' + escapeHtmlC(job.address) + '">' +
+    '</div>' +
+    '<div class="schedule-card-actions" style="margin-top:10px;">' +
+      '<button type="button" class="btn-sm schedule-cancel-edit-btn" data-id="' + escapeHtmlC(job.id) + '">Cancel</button>' +
+      '<button type="button" class="btn-gold btn-sm schedule-save-edit-btn" data-id="' + escapeHtmlC(job.id) + '">Save</button>' +
+    '</div>' +
+  '</div>';
+}
+
 function _customersEscape(str) {
   if (typeof str !== 'string') return '';
   return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
@@ -184,7 +462,7 @@ function escapeHtmlC(str) {
   return typeof escapeHtml === 'function' ? escapeHtml(str) : _customersEscape(str);
 }
 
-// ── START AUDIT FROM CUSTOMER ─────────────────────────────────
+// ── START AUDIT FROM SCHEDULE JOB ─────────────────────────────
 function startAuditFromCustomer(row) {
   if (typeof S === 'undefined') return;
   if (S.name || S.dump || (S.photos && S.photos.length)) {
@@ -196,6 +474,7 @@ function startAuditFromCustomer(row) {
   S.coop    = row.coop    || '';
   S.year    = row.year    || '';
   S.sqft    = row.sqft    || '';
+  S.customerNumber = row.customerNumber != null ? row.customerNumber : null;
   S.auditId = null;
   S.dump    = '';
   S.photos  = [];
@@ -206,11 +485,10 @@ function startAuditFromCustomer(row) {
   if (typeof renderHeader === 'function') renderHeader();
   if (typeof renderVoiceDump === 'function') renderVoiceDump();
   if (typeof renderPhotoList === 'function') renderPhotoList();
-  // Switch to Audit Data sub-tab
   if (typeof switchMainTab === 'function') {
     switchMainTab('audit', 'voice');
   }
-  toast('Started audit for ' + (row.name || 'customer'));
+  toast('Started audit for #' + row.customerNumber + ' ' + (row.name || 'customer'));
 }
 
 // ── GOOGLE SHEETS SETTINGS ────────────────────────────────────
@@ -223,12 +501,10 @@ function initGoogleSheetsSettings() {
 
   if (!sheetIdInput) return;
 
-  // Always refresh values from storage when More tab opens
   sheetIdInput.value  = getSheetId();
   rangeInput.value    = getSheetRange();
   gsApiKeyInput.value = getSheetApiKey();
 
-  // Column mapping fields
   var colMap = getColMap();
   ['name','address','date','coop','year','sqft'].forEach(function(key) {
     var el = document.getElementById('gs-col-' + key);
