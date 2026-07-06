@@ -23,9 +23,14 @@ var RESEARCH_INSTRUCTIONS_BUNDLED =
 var RESEARCH_DOMAINS_DEFAULT =
   'zillow.com\n' +
   'redfin.com\n' +
-  'realtor.com\n' +
   'arcountydata.com\n' +
   'google.com';
+
+// Domains Anthropic will not fetch (robots.txt / policy) — never pass to web_fetch allowed_domains
+var RESEARCH_FETCH_BLOCKED_DOMAINS = {
+  'realtor.com': true,
+  'www.realtor.com': true
+};
 
 // Arkansas zip → county (CHESS territory — extend as needed)
 var AR_ZIP_COUNTY = {
@@ -123,9 +128,15 @@ function getResearchPreferredDomains() {
   try { return localStorage.getItem('aft_research_preferred_domains') || RESEARCH_DOMAINS_DEFAULT; } catch(e) { return RESEARCH_DOMAINS_DEFAULT; }
 }
 function getResearchFetchAllowedDomains() {
-  var domains = getResearchPreferredDomains().split(/\r?\n/).map(function(d) { return d.trim(); }).filter(Boolean);
+  var domains = getResearchPreferredDomains().split(/\r?\n/).map(function(d) { return d.trim().toLowerCase(); }).filter(Boolean);
+  domains = domains.filter(function(d) { return !RESEARCH_FETCH_BLOCKED_DOMAINS[d]; });
   if (domains.length) return domains;
-  return ['zillow.com', 'redfin.com', 'realtor.com', 'arcountydata.com'];
+  return ['zillow.com', 'redfin.com', 'arcountydata.com'];
+}
+function sanitizeResearchPreferredDomains(text) {
+  return (text || '').split(/\r?\n/).map(function(d) { return d.trim(); }).filter(function(d) {
+    return d && !RESEARCH_FETCH_BLOCKED_DOMAINS[d.toLowerCase()];
+  }).join('\n');
 }
 function setResearchPreferredDomains(text) {
   try { localStorage.setItem('aft_research_preferred_domains', text || ''); } catch(e) {}
@@ -342,7 +353,6 @@ function buildResearchApiRequest(prompt) {
       type: fetchType,
       name: 'web_fetch',
       max_uses: getResearchMaxFetches(),
-      allowed_domains: getResearchFetchAllowedDomains(),
       citations: { enabled: true },
       max_content_tokens: 50000
     };
@@ -378,7 +388,16 @@ function buildResearchApiHeaders(apiKey) {
   return headers;
 }
 
+function migrateResearchPreferredDomains() {
+  var current = getResearchPreferredDomains();
+  var cleaned = sanitizeResearchPreferredDomains(current);
+  if (cleaned !== current.trim()) {
+    setResearchPreferredDomains(cleaned || RESEARCH_DOMAINS_DEFAULT);
+  }
+}
+
 function initResearchSettings() {
+  migrateResearchPreferredDomains();
   if (!researchSettingsWired) {
     researchSettingsWired = true;
     wireResearchSettings();
@@ -486,7 +505,7 @@ function saveResearchSettingsFromForm() {
   if (enableFetchCheckbox) setResearchEnableWebFetch(!!enableFetchCheckbox.checked);
   if (maxFetchesSelect) setResearchMaxFetches(parseInt(maxFetchesSelect.value, 10));
   if (fetchToolSelect) setResearchFetchTool(fetchToolSelect.value);
-  if (domainsTextarea) setResearchPreferredDomains(domainsTextarea.value);
+  if (domainsTextarea) setResearchPreferredDomains(sanitizeResearchPreferredDomains(domainsTextarea.value));
 
   var sources = {};
   RESEARCH_SOURCE_KEYS.forEach(function(s) {
@@ -551,7 +570,7 @@ function refreshResearchSettingsUI() {
     var fetchTool = getResearchFetchTool();
     Array.from(fetchToolSelect.options).forEach(function(opt) { opt.selected = (opt.value === fetchTool); });
   }
-  if (domainsTextarea) domainsTextarea.value = getResearchPreferredDomains();
+  if (domainsTextarea) domainsTextarea.value = sanitizeResearchPreferredDomains(getResearchPreferredDomains()) || getResearchPreferredDomains();
   if (instructionsTextarea && !instructionsTextarea.dataset.dirty) {
     instructionsTextarea.value = getResearchInstructions();
   }
@@ -975,7 +994,13 @@ function runResearchForSelectedJob() {
     toast('Research complete — review and edit before forwarding.');
   })
   .catch(function(err) {
-    toast('Research error: ' + err.message);
+    var msg = err.message || String(err);
+    if (/not allowed.*agent/i.test(msg) || /realtor\.com/i.test(msg)) {
+      msg = 'Research blocked: realtor.com cannot be fetched by Anthropic. Removed from settings — try again.';
+      setResearchPreferredDomains(sanitizeResearchPreferredDomains(getResearchPreferredDomains()));
+      refreshResearchSettingsUI();
+    }
+    toast('Research error: ' + msg);
     console.error(err);
   })
   .finally(function() {
