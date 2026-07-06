@@ -10,15 +10,19 @@ var researchSettingsWired = false;
 
 var RESEARCH_INSTRUCTIONS_BUNDLED =
   'PROPERTY RESEARCH WORKFLOW (follow in order):\n' +
-  '1. ZILLOW FIRST — Search: site:zillow.com {full address}. If a zillow.com/homedetails URL appears, use web_fetch to open that page and extract sq ft, beds, baths, year built, and property type.\n' +
-  '2. REDFIN BACKUP — Search: site:redfin.com {full address} and web_fetch any listing URL found.\n' +
-  '3. GOOGLE INDEX SNIPPET — Search the exact address in quotes. Google often shows Zillow sq ft and beds/baths in the snippet even when Zillow blocks direct access — extract that data as medium confidence.\n' +
-  '4. ARKANSAS ASSESSOR — For AR addresses, use arcountydata.com for the county listed in the research plan. Search by street number + street name (no suffix). Sebastian, Benton, Washington, Crawford, and other AR counties use this portal.\n' +
-  '5. MAPS CONTEXT — Search "{address} google maps" for text facts only (you cannot view satellite or Street View). Note pool, solar, lot size, or property type only if mentioned in search results.\n' +
-  '6. CO-OP — Identify electric co-op from zip/city if not already known.\n' +
-  'Never report "unable to access Zillow" until you have run site:zillow.com search AND attempted web_fetch on any Zillow URL found.\n' +
-  'Mark confidence high when Zillow/Redfin/assessor agree; medium for Google snippets alone; low for indirect sources only.\n' +
+  '1. GOOGLE ADDRESS SEARCH FIRST — Search the full address in quotes (e.g. "11006 Maple Park Dr, Fort Smith, AR 72916"). Google\'s #1 result is usually Zillow with sq ft, beds, baths, and value IN THE SNIPPET. Extract that data as HIGH confidence (source: Zillow via Google snippet). Also search: {street #} {street name} {city} zillow\n' +
+  '2. DIRECT ZILLOW URL — web_fetch the homedetails URL from the research plan (provided in prompt). Extract beds, baths, sq ft, year built, property type.\n' +
+  '3. ZILLOW HOMEDETAILS SEARCH — Search: site:zillow.com/homedetails {street #} "{street name}" {city}\n' +
+  '4. REDFIN BACKUP — Search: site:redfin.com {full address} and web_fetch any /home/ URL found.\n' +
+  '5. ARKANSAS ASSESSOR — For AR addresses, search arcountydata.com for the county in the plan. Use street # + street name (no Dr/St suffix).\n' +
+  '6. MAPS CONTEXT — Text-only clues from Google Maps search results (no satellite/Street View).\n' +
+  '7. CO-OP — Electric co-op from zip/city.\n' +
+  'CRITICAL: Never report "no Zillow record" if Google snippet or any search shows sq ft/beds for THIS exact street number.\n' +
+  'Do NOT use neighboring addresses for subject property sq ft or year built — only comparables as a separate finding.\n' +
+  'Mark high when Zillow snippet/page/assessor agree; medium for Google snippet alone; low for inference only.\n' +
   'Never include or search for customer name — address and customer # only.';
+
+var RESEARCH_INSTRUCTIONS_VERSION = 2;
 
 var RESEARCH_DOMAINS_DEFAULT =
   'zillow.com\n' +
@@ -73,7 +77,7 @@ function getResearchModel() {
 }
 function setResearchModel(m) { try { localStorage.setItem('aft_research_model', m); } catch(e) {} }
 function getResearchEffort() {
-  try { return localStorage.getItem('aft_research_effort') || 'low'; } catch(e) { return 'low'; }
+  try { return localStorage.getItem('aft_research_effort') || 'medium'; } catch(e) { return 'medium'; }
 }
 function setResearchEffort(v) { try { localStorage.setItem('aft_research_effort', v); } catch(e) {} }
 function getResearchTemperature() {
@@ -106,7 +110,7 @@ function setResearchEnableWebFetch(on) {
   try { localStorage.setItem('aft_research_enable_web_fetch', on ? '1' : '0'); } catch(e) {}
 }
 function getResearchMaxFetches() {
-  try { return parseInt(localStorage.getItem('aft_research_max_fetches') || '5', 10); } catch(e) { return 5; }
+  try { return parseInt(localStorage.getItem('aft_research_max_fetches') || '8', 10); } catch(e) { return 8; }
 }
 function setResearchMaxFetches(n) { try { localStorage.setItem('aft_research_max_fetches', String(n)); } catch(e) {} }
 function getResearchFetchTool() {
@@ -235,9 +239,49 @@ function parseResearchAddress(address) {
   return parsed;
 }
 
+function slugifyResearchAddress(parsed) {
+  var tokens = [];
+  if (parsed.streetNumber) tokens.push(parsed.streetNumber);
+  if (parsed.streetName) tokens.push(parsed.streetName);
+  if (parsed.streetSuffix) tokens.push(parsed.streetSuffix);
+  if (parsed.city) tokens.push(parsed.city);
+  if (parsed.state) tokens.push(parsed.state);
+  if (parsed.zip) tokens.push(parsed.zip);
+  if (!tokens.length) return '';
+  return tokens.join('-').replace(/[^A-Za-z0-9]+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+}
+
+function buildResearchDirectUrls(parsed) {
+  var slug = slugifyResearchAddress(parsed);
+  if (!slug) return [];
+  var urls = [
+    'https://www.zillow.com/homedetails/' + slug + '/',
+    'https://www.zillow.com/homes/' + slug + '_rb/'
+  ];
+  if (parsed.state === 'AR' && parsed.county) {
+    urls.push('https://www.arcountydata.com/county.asp?county=' + encodeURIComponent(parsed.county));
+  }
+  return urls;
+}
+
+function buildResearchSearchQueries(parsed, rawAddress) {
+  var addr = parsed.raw || rawAddress || '';
+  var shortAddr = [parsed.streetNumber, parsed.streetName, parsed.city, parsed.state, parsed.zip].filter(Boolean).join(' ');
+  var queries = [
+    '"' + addr + '"',
+    parsed.streetNumber + ' ' + parsed.streetName + ' ' + (parsed.city || '') + ' zillow',
+    'site:zillow.com/homedetails ' + parsed.streetNumber + ' "' + parsed.streetName + '" ' + (parsed.city || ''),
+    'site:redfin.com ' + addr
+  ];
+  if (shortAddr && shortAddr !== addr) queries.push(shortAddr + ' zillow');
+  return queries.filter(function(q, i, arr) { return q.trim() && arr.indexOf(q) === i; });
+}
+
 function buildResearchAddressPlan(payload) {
   var parsed = parseResearchAddress(payload.address);
-  var lines = ['MANDATORY RESEARCH PLAN (execute in order):', ''];
+  var directUrls = buildResearchDirectUrls(parsed);
+  var searchQueries = buildResearchSearchQueries(parsed, payload.address);
+  var lines = ['MANDATORY RESEARCH PLAN (execute in this exact order):', ''];
   lines.push('Parsed address components:');
   lines.push('- Full: ' + (parsed.raw || payload.address));
   if (parsed.streetNumber) lines.push('- Street #: ' + parsed.streetNumber);
@@ -248,24 +292,32 @@ function buildResearchAddressPlan(payload) {
   if (parsed.zip) lines.push('- Zip: ' + parsed.zip);
   if (parsed.county) lines.push('- Arkansas county: ' + parsed.county);
   lines.push('');
-  lines.push('Step 1 — ZILLOW: Search exactly: site:zillow.com ' + parsed.raw);
-  if (getResearchEnableWebFetch()) {
-    lines.push('When a zillow.com/homedetails URL appears, use web_fetch on that exact URL before moving on.');
-  }
-  lines.push('Extract: beds, baths, sq ft, year built, property type, Zestimate/status.');
-  lines.push('Step 2 — REDFIN: Search: site:redfin.com ' + parsed.raw);
-  lines.push('Step 3 — GOOGLE SNIPPET: Search the quoted address "' + parsed.raw + '" and read Zillow/Redfin snippet text for sq ft and beds/baths.');
-  if (parsed.state === 'AR' && parsed.county) {
-    lines.push('Step 4 — AR COUNTY ASSESSOR: Search: site:arcountydata.com ' + parsed.county + ' County ' + parsed.streetNumber + ' ' + parsed.streetName);
-    lines.push('ARCountyData tips: Street #=' + (parsed.streetNumber || '?') + ', Street Name=' + (parsed.streetName || '?') + ' (no Dr/St suffix), City=' + (parsed.city || '?') + '.');
-    lines.push(parsed.county + ' County uses arcountydata.com — click parcel number in results for sq ft, year built, owner, assessed value.');
-  } else if (parsed.state === 'AR') {
-    lines.push('Step 4 — AR COUNTY ASSESSOR: Search site:arcountydata.com with street # ' + (parsed.streetNumber || '?') + ' and street name ' + (parsed.streetName || '?') + '.');
-  }
-  lines.push('Step 5 — MAPS (text only): Search "' + parsed.raw + ' google maps" for any written clues (pool, solar, lot size). Satellite and Street View imagery are NOT available to you.');
-  if (parsed.zip) lines.push('Step 6 — ELECTRIC CO-OP: Search utility/co-op serving zip ' + parsed.zip + (parsed.city ? ' / ' + parsed.city : '') + '.');
+  lines.push('Step 1 — GOOGLE/ZILLOW SNIPPET (do this FIRST):');
+  searchQueries.slice(0, 2).forEach(function(q, i) {
+    lines.push('  Search ' + (i + 1) + ': ' + q);
+  });
+  lines.push('Google result #1 is usually Zillow with sq ft, beds, baths, and value in the snippet text.');
+  lines.push('If snippet shows data for street #' + (parsed.streetNumber || '?') + ', record as HIGH confidence (source: Zillow via Google snippet).');
   lines.push('');
-  lines.push('Do NOT report "unable to access Zillow" until Step 1 search AND web_fetch (if enabled) are both attempted.');
+  if (getResearchEnableWebFetch() && directUrls.length) {
+    lines.push('Step 2 — DIRECT URL FETCH (web_fetch each URL below before broad searching):');
+    directUrls.forEach(function(url) { lines.push('  ' + url); });
+    lines.push('If fetch fails, rely on Step 1 snippet data — do NOT report "not found" if snippet had sq ft.');
+    lines.push('');
+  }
+  lines.push('Step 3 — ZILLOW HOMEDETAILS SEARCH: ' + (searchQueries[2] || ('site:zillow.com ' + parsed.raw)));
+  lines.push('Step 4 — REDFIN: ' + (searchQueries[3] || ('site:redfin.com ' + parsed.raw)));
+  if (parsed.state === 'AR' && parsed.county) {
+    lines.push('Step 5 — AR COUNTY ASSESSOR: site:arcountydata.com ' + parsed.county + ' ' + parsed.streetNumber + ' ' + parsed.streetName);
+    lines.push('  Assessor form: Street #=' + (parsed.streetNumber || '?') + ', Street Name=' + (parsed.streetName || '?') + ' (no suffix), City=' + (parsed.city || '?') + '.');
+  } else if (parsed.state === 'AR') {
+    lines.push('Step 5 — AR COUNTY ASSESSOR: site:arcountydata.com ' + parsed.streetNumber + ' ' + parsed.streetName);
+  }
+  lines.push('Step 6 — MAPS (text only): "' + parsed.raw + '" google maps');
+  if (parsed.zip) lines.push('Step 7 — ELECTRIC CO-OP: utility serving zip ' + parsed.zip + (parsed.city ? ' / ' + parsed.city : '') + '.');
+  lines.push('');
+  lines.push('FORBIDDEN: Saying "no direct Zillow record" when Google snippet shows this address.');
+  lines.push('FORBIDDEN: Using neighboring house sq ft/year as the subject property value.');
   return lines.join('\n');
 }
 
@@ -320,9 +372,12 @@ function buildResearchPrompt(payload) {
     '  }\n' +
     '}\n\n' +
     'RULES:\n' +
+    '- REQUIRED finding topics when data exists: "Square Footage", "Beds/Baths", "Property Type", "Zestimate/Value", "Year Built"\n' +
+    '- Fill prefill.sqft and prefill.year from the best source found\n' +
     '- Sort findings array by confidence: high first, then medium, then low\n' +
     '- confidence must be exactly "high", "medium", or "low"\n' +
     '- Never include or guess a customer name\n' +
+    '- Never invent sale dates or values — only cite what sources state\n' +
     '- Return ONLY JSON — no markdown fences, no prose outside JSON';
 }
 
@@ -396,8 +451,57 @@ function migrateResearchPreferredDomains() {
   }
 }
 
+function migrateResearchInstructions() {
+  try {
+    var v = parseInt(localStorage.getItem('aft_research_instructions_v') || '0', 10);
+    if (v >= RESEARCH_INSTRUCTIONS_VERSION) return;
+    localStorage.setItem('aft_research_instructions_v', String(RESEARCH_INSTRUCTIONS_VERSION));
+    var stored = localStorage.getItem('aft_research_instructions') || '';
+    if (!stored ||
+        stored.indexOf('ZILLOW FIRST') !== -1 ||
+        stored.indexOf('site:zillow.com {full address}') !== -1) {
+      localStorage.removeItem('aft_research_instructions');
+    }
+  } catch(e) {}
+}
+
+function extractResearchField(text, patterns) {
+  for (var i = 0; i < patterns.length; i++) {
+    var m = text.match(patterns[i]);
+    if (m && m[1]) return m[1].replace(/,/g, '').trim();
+  }
+  return '';
+}
+
+function enrichResearchOutputFromFindings(output) {
+  if (!output) return output;
+  output.prefill = output.prefill || {};
+  var allText = (output.summary || '') + ' ' + (output.findings || []).map(function(f) {
+    return (f.topic || '') + ' ' + (f.value || '') + ' ' + (f.source || '');
+  }).join(' ');
+
+  if (!output.prefill.sqft) {
+    var sqft = extractResearchField(allText, [
+      /(\d{3,5})\s*(?:sq\.?\s*ft|square\s*feet|Square\s*Feet|sqft)/i,
+      /(?:sq\.?\s*ft|square\s*feet|Square\s*Feet)[:\s]+(\d{3,5})/i
+    ]);
+    if (sqft) output.prefill.sqft = sqft;
+  }
+
+  if (!output.prefill.year) {
+    var year = extractResearchField(allText, [
+      /(?:year\s*built|built\s*in|built)[:\s]+(?:circa\s+)?(19\d{2}|20[01]\d)/i,
+      /\b(19[5-9]\d|20[01]\d)\s*(?:build|built)/i
+    ]);
+    if (year) output.prefill.year = year;
+  }
+
+  return output;
+}
+
 function initResearchSettings() {
   migrateResearchPreferredDomains();
+  migrateResearchInstructions();
   if (!researchSettingsWired) {
     researchSettingsWired = true;
     wireResearchSettings();
@@ -570,7 +674,7 @@ function refreshResearchSettingsUI() {
     var fetchTool = getResearchFetchTool();
     Array.from(fetchToolSelect.options).forEach(function(opt) { opt.selected = (opt.value === fetchTool); });
   }
-  if (domainsTextarea) domainsTextarea.value = sanitizeResearchPreferredDomains(getResearchPreferredDomains()) || getResearchPreferredDomains();
+  if (domainsTextarea) domainsTextarea.value = getResearchPreferredDomains();
   if (instructionsTextarea && !instructionsTextarea.dataset.dirty) {
     instructionsTextarea.value = getResearchInstructions();
   }
@@ -583,6 +687,7 @@ function refreshResearchSettingsUI() {
 }
 
 function initResearchTab() {
+  migrateResearchInstructions();
   if (!researchTabInitialized) {
     researchTabInitialized = true;
     wireResearchTab();
@@ -973,7 +1078,7 @@ function runResearchForSelectedJob() {
       parsed = JSON.parse(repaired);
     }
 
-    var output = normalizeResearchOutput(parsed);
+    var output = enrichResearchOutputFromFindings(normalizeResearchOutput(parsed));
     output.researchedAt = new Date().toISOString();
     if (data.usage) {
       output.meta = {
