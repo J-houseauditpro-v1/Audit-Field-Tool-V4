@@ -1780,7 +1780,78 @@ body.modal-open {
   border-color: rgba(201,168,76,0.35);
 }
 
-/* ── CUSTOMERS TAB ────────────────────────────────── */
+/* ── SCHEDULE TAB ─────────────────────────────────── */
+.schedule-add-grid {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+}
+.schedule-add-field-grow {
+  flex: 1;
+  min-width: 0;
+}
+.schedule-add-number-wrap {
+  width: 88px;
+  flex-shrink: 0;
+}
+.schedule-field-label {
+  display: block;
+  font-size: 0.72rem;
+  color: var(--sub);
+  margin-bottom: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.schedule-add-address-input,
+.schedule-edit-address {
+  width: 100%;
+}
+.schedule-job-card .schedule-card-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.schedule-customer-num {
+  flex-shrink: 0;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #111;
+  background: var(--gold);
+  border-radius: 6px;
+  padding: 2px 8px;
+  line-height: 1.4;
+}
+.schedule-job-card .customer-card-name {
+  flex: 1;
+  min-width: 0;
+}
+.schedule-source-tag {
+  font-size: 0.68rem;
+  color: var(--sub);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 1px 6px;
+}
+.schedule-source-tag.manual {
+  color: #8ab4f8;
+  border-color: rgba(138,180,248,0.35);
+}
+.schedule-card-address {
+  margin-top: 4px;
+}
+.schedule-card-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  margin-top: 8px;
+}
+.schedule-card-actions .customer-start-btn {
+  margin-left: auto;
+}
+
+/* ── CUSTOMERS / SCHEDULE CARDS ────────────────────────────────── */
 .customer-card {
   background: var(--card-bg, #1c1c1e);
   border: 1px solid var(--border, #333);

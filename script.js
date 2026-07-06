@@ -5,6 +5,7 @@
 // ── STATE ────────────────────────────────────────────────────
 var S = {
   name: '', address: '', date: '', year: '', sqft: '', coop: '',
+  customerNumber: null,
   dump: '',
   photos: [],       // [{id, auditId, note, category, ts}]
   auditId: null,
@@ -2141,6 +2142,7 @@ function autosaveAudit() {
 function clearCurrent() {
   stopVoiceRec();
   S.name = ''; S.address = ''; S.date = ''; S.year = ''; S.sqft = ''; S.coop = '';
+  S.customerNumber = null;
   S.dump = ''; S.photos = []; S.auditId = null; S.tcSignature = null;
   clearTCSignature();
   if (typeof clearInterpretSession === 'function') clearInterpretSession();
@@ -2199,6 +2201,7 @@ function deleteAudit(id) {
     S.year = '';
     S.sqft = '';
     S.coop = '';
+    S.customerNumber = null;
     S.dump = '';
     S.photos = [];
     S.auditId = null;
