@@ -531,6 +531,79 @@ document.addEventListener('DOMContentLoaded', function() {
 }); // end DOMContentLoaded
 
 // ── TABS ─────────────────────────────────────────────────────
+var currentFieldSubTab = 'voice';
+var fieldSubTabsInitialized = false;
+
+var FIELD_SUB_TAB_IDS = ['customers', 'research', 'voice', 'tc', 'photos'];
+
+function renderResearchInfo() {
+  var nameEl = document.getElementById('research-name-display');
+  var addrEl = document.getElementById('research-address-display');
+  if (nameEl) nameEl.textContent = (typeof S !== 'undefined' && S.name) ? S.name : '—';
+  if (addrEl) addrEl.textContent = (typeof S !== 'undefined' && S.address) ? S.address : '—';
+}
+
+function switchFieldSubTab(name, options) {
+  options = options || {};
+  if (name) currentFieldSubTab = name;
+  var fieldPanel = document.getElementById('tab-field');
+  if (!fieldPanel || fieldPanel.style.display === 'none') return;
+
+  if (currentFieldSubTab !== 'voice' && !options.keepRecording) stopVoiceRec();
+
+  document.querySelectorAll('.field-pill').forEach(function(p) {
+    p.classList.toggle('active', p.dataset.field === currentFieldSubTab);
+  });
+  FIELD_SUB_TAB_IDS.forEach(function(id) {
+    var el = document.getElementById('tab-' + id);
+    if (el) el.style.display = (id === currentFieldSubTab) ? 'block' : 'none';
+  });
+
+  if (currentFieldSubTab === 'customers' && typeof initCustomersTab === 'function') initCustomersTab();
+  if (currentFieldSubTab === 'research') renderResearchInfo();
+  if (currentFieldSubTab === 'tc') renderTCInfo();
+  if (currentFieldSubTab === 'photos') positionPhotoStickyControls();
+  if (currentFieldSubTab === 'voice') renderPhotoNotesSummary();
+  updateTopChromeLayout();
+}
+
+function switchMainTab(tabId, fieldSubTab) {
+  autosaveAudit();
+
+  var activeFieldSub = fieldSubTab || currentFieldSubTab;
+  if (tabId !== 'field' || activeFieldSub !== 'voice') stopVoiceRec();
+
+  var gear = document.getElementById('header-settings-btn');
+  if (gear) gear.classList.remove('active');
+
+  document.querySelectorAll('.tab').forEach(function(b) { b.classList.remove('active'); });
+  document.querySelectorAll('.tabpanel').forEach(function(p) { p.style.display = 'none'; });
+
+  var tabBtn = document.querySelector('[data-tab="' + tabId + '"]');
+  var tabPanel = document.getElementById('tab-' + tabId);
+  if (tabBtn) tabBtn.classList.add('active');
+  if (tabPanel) tabPanel.style.display = 'block';
+
+  if (tabId === 'field') {
+    switchFieldSubTab(fieldSubTab || currentFieldSubTab, { keepRecording: (fieldSubTab || currentFieldSubTab) === 'voice' });
+  }
+
+  if (tabId === 'export') renderWeeklyBatches();
+  if (tabId === 'interpret' && typeof initInterpretTab === 'function') initInterpretTab();
+  if (tabId === 'audits') renderAuditsList();
+}
+
+function initFieldSubTabs() {
+  if (fieldSubTabsInitialized) return;
+  fieldSubTabsInitialized = true;
+  document.querySelectorAll('.field-pill').forEach(function(pill) {
+    pill.addEventListener('click', function() {
+      autosaveAudit();
+      switchFieldSubTab(pill.dataset.field);
+    });
+  });
+}
+
 function updateTopChromeLayout() {
   var header = document.querySelector('.header');
   var tabnav = document.querySelector('.tabnav');
@@ -540,15 +613,13 @@ function updateTopChromeLayout() {
   tabnav.style.top = headerH + 'px';
   var total = headerH + tabnav.offsetHeight;
   document.documentElement.style.setProperty('--top-chrome-height', total + 'px');
+  var subnav = document.getElementById('field-subnav');
+  document.documentElement.style.setProperty('--field-subnav-height', subnav ? subnav.offsetHeight + 'px' : '0px');
   positionPhotoStickyControls();
 }
 
 function positionPhotoStickyControls() {
-  var el = document.getElementById('photo-controls-sticky');
-  var header = document.querySelector('.header');
-  var tabnav = document.querySelector('.tabnav');
-  if (!el || !header || !tabnav) return;
-  el.style.top = (header.offsetHeight + tabnav.offsetHeight) + 'px';
+  updateTopChromeLayout();
 }
 
 function openSettingsPanel() {
@@ -577,23 +648,10 @@ function initTabs() {
 
   document.querySelectorAll('.tab').forEach(function(btn) {
     btn.addEventListener('click', function() {
-      autosaveAudit();
-      if (btn.dataset.tab !== 'voice') stopVoiceRec();
-      var gear = document.getElementById('header-settings-btn');
-      if (gear) gear.classList.remove('active');
-      document.querySelectorAll('.tab').forEach(function(b) { b.classList.remove('active'); });
-      document.querySelectorAll('.tabpanel').forEach(function(p) { p.style.display = 'none'; });
-      btn.classList.add('active');
-      document.getElementById('tab-' + btn.dataset.tab).style.display = 'block';
-      if (btn.dataset.tab === 'export') renderWeeklyBatches();
-      if (btn.dataset.tab === 'interpret' && typeof initInterpretTab === 'function') initInterpretTab();
-      if (btn.dataset.tab === 'customers' && typeof initCustomersTab === 'function') initCustomersTab();
-      if (btn.dataset.tab === 'tc') renderTCInfo();
-      if (btn.dataset.tab === 'audits') renderAuditsList();
-      if (btn.dataset.tab === 'photos') positionPhotoStickyControls();
-      if (btn.dataset.tab === 'voice') renderPhotoNotesSummary();
+      switchMainTab(btn.dataset.tab);
     });
   });
+  initFieldSubTabs();
 }
 
 // ── CUSTOMER FIELDS ───────────────────────────────────────────
@@ -2109,10 +2167,7 @@ function loadAudit(id) {
   renderVoiceDump();
   renderPhotoList();
   renderTCInfo();
-  document.querySelectorAll('.tab').forEach(function(b) { b.classList.remove('active'); });
-  document.querySelectorAll('.tabpanel').forEach(function(p) { p.style.display = 'none'; });
-  document.querySelector('[data-tab="voice"]').classList.add('active');
-  document.getElementById('tab-voice').style.display = 'block';
+  switchMainTab('field', 'voice');
   toast('Loaded: ' + (S.name || 'audit'));
   if (typeof refreshInterpretFromLoadedAudit === 'function') refreshInterpretFromLoadedAudit();
 }

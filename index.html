@@ -27,21 +27,9 @@
 
 <!-- TAB NAV -->
 <nav class="tabnav">
-  <button class="tab" data-tab="customers">
-    <span class="tab-icon">👥</span>
-    <span class="tab-label">Customers</span>
-  </button>
-  <button class="tab active" data-tab="voice">
+  <button class="tab active" data-tab="field">
     <span class="tab-icon">📋</span>
     <span class="tab-label">Audit Data</span>
-  </button>
-  <button class="tab" data-tab="tc">
-    <span class="tab-icon">✍️</span>
-    <span class="tab-label">T&amp;C</span>
-  </button>
-  <button class="tab" data-tab="photos">
-    <span class="tab-icon">📷</span>
-    <span class="tab-label">Photos</span>
   </button>
   <button class="tab" data-tab="audits">
     <span class="tab-icon">📁</span>
@@ -57,8 +45,19 @@
   </button>
 </nav>
 
-<!-- ======================== CUSTOMERS TAB ======================== -->
-<div id="tab-customers" class="tabpanel" style="display:none">
+<!-- ======================== AUDIT DATA (FIELD) TAB ======================== -->
+<div id="tab-field" class="tabpanel field-tabpanel">
+
+  <div class="field-subnav" id="field-subnav">
+    <button type="button" class="field-pill" data-field="customers">Customers</button>
+    <button type="button" class="field-pill" data-field="research">Research</button>
+    <button type="button" class="field-pill active" data-field="voice">Audit Data</button>
+    <button type="button" class="field-pill" data-field="tc">T&amp;C</button>
+    <button type="button" class="field-pill" data-field="photos">Photos</button>
+  </div>
+
+<!-- ======================== CUSTOMERS SUB-TAB ======================== -->
+<div id="tab-customers" class="field-subpanel" style="display:none">
 
   <section class="card">
     <div class="row-between" style="margin-bottom:10px;">
@@ -77,8 +76,35 @@
 
 </div>
 
-<!-- ======================== T&C TAB ======================== -->
-<div id="tab-tc" class="tabpanel" style="display:none">
+<!-- ======================== RESEARCH SUB-TAB (placeholder) ======================== -->
+<div id="tab-research" class="field-subpanel" style="display:none">
+
+  <section class="card">
+    <div class="card-title">🔍 Research</div>
+    <div class="card-sub">Property lookup using the current customer address — coming soon.</div>
+    <p class="research-placeholder-text">
+      This tab will use the customer name and address from Audit Data to run a Claude web search and return useful property information — year built, sq ft, HVAC hints, prior permits, and other public data when available.
+    </p>
+    <p class="research-placeholder-text">
+      Results will feed into Interpret and other workflows later. Configure your Claude API key in Settings when this feature is enabled.
+    </p>
+    <div class="tc-info-grid" style="margin-top:12px;">
+      <div class="tc-info-row">
+        <span class="tc-info-label">Customer</span>
+        <span class="tc-info-value" id="research-name-display">—</span>
+      </div>
+      <div class="tc-info-row">
+        <span class="tc-info-label">Address</span>
+        <span class="tc-info-value" id="research-address-display">—</span>
+      </div>
+    </div>
+    <button type="button" class="btn-outline btn-full" id="research-run-btn" disabled style="margin-top:14px;opacity:0.5;">🔍 Run Research (coming soon)</button>
+  </section>
+
+</div>
+
+<!-- ======================== T&C SUB-TAB ======================== -->
+<div id="tab-tc" class="field-subpanel" style="display:none">
 
   <section class="card">
     <div class="card-title">📋 Terms & Conditions — CHESS Program</div>
@@ -137,8 +163,8 @@
 
 </div>
 
-<!-- ======================== VOICE TAB ======================== -->
-<div id="tab-voice" class="tabpanel">
+<!-- ======================== AUDIT DATA SUB-TAB ======================== -->
+<div id="tab-voice" class="field-subpanel">
 
   <!-- CUSTOMER INFO -->
   <section class="card">
@@ -217,8 +243,8 @@
 
 </div>
 
-<!-- ======================== PHOTOS TAB ======================== -->
-<div id="tab-photos" class="tabpanel" style="display:none">
+<!-- ======================== PHOTOS SUB-TAB ======================== -->
+<div id="tab-photos" class="field-subpanel" style="display:none">
 
   <section class="card" id="photo-controls-sticky">
     <div class="row-between" style="margin-bottom:8px;">
@@ -257,6 +283,8 @@
   <div id="photo-list"></div>
 
 </div>
+
+</div><!-- /tab-field -->
 
 <!-- ======================== AUDITS TAB ======================== -->
 <div id="tab-audits" class="tabpanel" style="display:none">
