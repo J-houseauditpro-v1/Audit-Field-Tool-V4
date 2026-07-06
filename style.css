@@ -42,7 +42,64 @@ body {
 }
 .header-main { flex: 1; min-width: 0; }
 .header-title { font-size: 1.1rem; font-weight: 700; color: var(--gold); }
+.header-customer-name {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #f5f5f5;
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 .header-sub { font-size: 0.78rem; color: var(--sub); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.header-pipeline {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 2px;
+  margin-top: 5px;
+  padding-bottom: 2px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.header-pipeline::-webkit-scrollbar { display: none; }
+.header-pipeline-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+  min-width: 44px;
+  opacity: 0.28;
+}
+.header-pipeline-step.is-reached { opacity: 0.55; }
+.header-pipeline-step.is-current { opacity: 1; }
+.header-pipeline-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #555;
+  flex-shrink: 0;
+}
+.header-pipeline-step.is-reached .header-pipeline-dot { background: var(--gold); }
+.header-pipeline-step.is-current .header-pipeline-dot {
+  background: #4caf50;
+  box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.35);
+}
+.header-pipeline-label {
+  font-size: 0.48rem;
+  line-height: 1.15;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  color: var(--sub);
+  margin-top: 3px;
+  text-align: center;
+  max-width: 52px;
+}
+.header-pipeline-step.is-current .header-pipeline-label {
+  color: #f0f0f0;
+  font-weight: 600;
+}
 .header-settings-btn {
   flex-shrink: 0;
   display: flex;
@@ -1884,6 +1941,15 @@ body.modal-open {
 .research-queue-row {
   cursor: pointer;
 }
+.research-queue-name {
+  font-weight: 600;
+  color: var(--text);
+}
+.research-queue-address {
+  font-size: 0.78rem;
+  color: var(--sub);
+  margin-top: 2px;
+}
 .research-has-results {
   color: #4caf50;
   font-size: 0.78rem;
@@ -1948,6 +2014,91 @@ body.modal-open {
   font-size: 0.86rem;
   line-height: 1.5;
   white-space: pre-wrap;
+}
+.research-source-checks {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 6px;
+}
+.research-source-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 0.82rem;
+  color: var(--text);
+  line-height: 1.35;
+}
+.research-source-check input {
+  margin-top: 3px;
+  flex-shrink: 0;
+}
+
+/* ── REVIEW TAB ─────────────────────────────────── */
+.review-stat-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+.review-stat-pill {
+  font-size: 0.78rem;
+  color: var(--sub);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 4px 10px;
+}
+.review-sig-yes { color: #4caf50; }
+.review-sig-no { color: #e03333; }
+.review-textarea {
+  width: 100%;
+  min-height: 80px;
+  resize: vertical;
+}
+.review-send-btn {
+  margin: 12px 0 20px;
+  color: #111;
+  font-weight: 700;
+}
+.review-ready-banner {
+  margin-top: 8px;
+  font-size: 0.8rem;
+  color: #4caf50;
+}
+
+/* ── ARCHIVE ─────────────────────────────────── */
+.archive-audit-btns {
+  flex-wrap: wrap;
+  max-width: 100%;
+}
+.archive-detail-box {
+  max-height: 90vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.archive-detail-body {
+  overflow-y: auto;
+  flex: 1;
+  margin-top: 8px;
+}
+.archive-detail-pre {
+  white-space: pre-wrap;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: var(--text);
+  font-family: inherit;
+}
+.archive-detail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+.interpret-queue-row {
+  cursor: default;
 }
 
 /* ── CUSTOMERS / SCHEDULE CARDS ────────────────────────────────── */

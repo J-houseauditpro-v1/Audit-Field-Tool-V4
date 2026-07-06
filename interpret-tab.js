@@ -867,7 +867,127 @@ function updateInterpSaveStatus(saved) {
 }
 
 // ── INTERPRET TAB INIT ────────────────────────────────────────
+function getInterpretQueueAudits() {
+  if (typeof getSaved !== 'function') return [];
+  return getSaved().filter(function(a) {
+    return a.readyForProcessingAt && !a.archivedAt;
+  });
+}
+
+function renderInterpretQueue() {
+  var listEl = document.getElementById('interpret-queue-list');
+  if (!listEl || typeof getSaved !== 'function' || typeof groupAuditsByWeek !== 'function') return;
+
+  var audits = getInterpretQueueAudits();
+  if (!audits.length) {
+    listEl.innerHTML = '<div class="empty-msg">No audits in queue — complete an audit on Audit → Review first.</div>';
+    return;
+  }
+
+  var weeks = groupAuditsByWeek(audits);
+  listEl.innerHTML = weeks.map(function(week) {
+    var daySections = week.days.map(function(day) {
+      var rows = day.audits.map(function(a) {
+        return renderInterpretQueueRow(a);
+      }).join('');
+      return '<div class="day-group">' +
+        '<div class="day-group-header">' +
+          '<span class="day-group-title">' + escapeHtml(auditEscape(day.label)) + '</span>' +
+          '<span class="day-group-count">' + day.audits.length + ' audit' + (day.audits.length !== 1 ? 's' : '') + '</span>' +
+        '</div>' + rows +
+      '</div>';
+    }).join('');
+    return '<div class="week-group">' +
+      '<div class="week-group-header">' +
+        '<span class="week-group-title">' + escapeHtml(week.label) + '</span>' +
+        '<span class="week-group-count">' + week.audits.length + ' audit' + (week.audits.length !== 1 ? 's' : '') + '</span>' +
+      '</div>' + daySections +
+    '</div>';
+  }).join('');
+
+  listEl.querySelectorAll('.interpret-queue-open-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      loadAuditForInterpret(btn.dataset.id);
+    });
+  });
+}
+
+function renderInterpretQueueRow(a) {
+  var name = (a.customer && a.customer.name) ? a.customer.name : 'Unnamed';
+  var date = typeof formatExportRowDate === 'function' ? formatExportRowDate(a.customer.date || '—') : '—';
+  var interpreted = typeof auditHasInterpretation === 'function' && auditHasInterpretation(a);
+  var statusCls = interpreted ? 'interp-yes' : 'interp-no';
+  var statusLabel = interpreted ? 'Yes' : 'No';
+  var isCurrent = typeof S !== 'undefined' && S.auditId === a.id;
+  return '<div class="week-audit-row interpret-queue-row' + (isCurrent ? ' is-current' : '') + '">' +
+    '<div class="week-audit-info">' +
+      '<div class="week-audit-name">' + escapeHtml(auditEscape(name)) + '</div>' +
+      '<div class="week-audit-meta">' +
+        '<span>' + escapeHtml(date) + '</span>' +
+        '<span class="audit-interp-status ' + statusCls + '"><span class="interp-status-dot">●</span> Interpreted? ' + statusLabel + '</span>' +
+      '</div>' +
+    '</div>' +
+    '<div class="week-audit-btns">' +
+      '<button type="button" class="btn-xs btn-xs-gold interpret-queue-open-btn" data-id="' + escapeHtml(auditEscape(a.id)) + '">Open</button>' +
+    '</div>' +
+  '</div>';
+}
+
+function loadAuditForInterpret(id) {
+  var saved = typeof getSaved === 'function' ? getSaved() : [];
+  var rec = saved.find(function(a) { return a.id === id; });
+  if (!rec) return;
+  if (typeof S !== 'undefined') {
+    S.name = rec.customer.name || '';
+    S.address = rec.customer.address || '';
+    S.date = rec.customer.date || '';
+    S.year = rec.customer.yearBuilt || '';
+    S.sqft = rec.customer.sqFt || '';
+    S.coop = rec.customer.coop || '';
+    S.customerNumber = rec.customer.customerNumber != null ? rec.customer.customerNumber : null;
+    S.scheduleJobId = rec.scheduleJobId || null;
+    S.researchNotes = rec.researchNotes || '';
+    S.dump = rec.voiceDump || '';
+    S.photos = rec.photos || [];
+    S.auditId = rec.id;
+    S.tcSignature = rec.tcSignature || null;
+    if (typeof save === 'function') save();
+  }
+  if (rec.interpretedOutput && rec.interpretedOutput.fields) {
+    interpretLastParsed = rec.interpretedOutput;
+    interpretLastMeta = rec.interpretedOutput.interpretMeta || null;
+    interpretDirty = false;
+  } else {
+    interpretLastParsed = null;
+    interpretLastMeta = null;
+    interpretDirty = false;
+  }
+  renderInterpretInfo();
+  if (interpretLastParsed) {
+    renderInterpretOutput(interpretLastParsed);
+    renderInterpretClarifications(interpretLastParsed);
+    renderInterpretFlags(interpretLastParsed);
+    var saveCard = document.getElementById('interp-save-card');
+    if (saveCard) saveCard.style.display = 'block';
+    updateInterpSaveStatus(true);
+  } else {
+    ['interp-flags-card', 'interp-output-card', 'interp-clar-card', 'interp-save-card'].forEach(function(cid) {
+      var el = document.getElementById(cid);
+      if (el) el.style.display = 'none';
+    });
+  }
+  renderInterpretQueue();
+  if (typeof renderHeader === 'function') renderHeader();
+  if (typeof toast === 'function') toast('Loaded for interpretation: ' + (rec.customer.name || 'audit'));
+}
+
+function auditEscape(str) {
+  if (typeof escapeHtml === 'function') return escapeHtml(str);
+  return String(str || '');
+}
+
 function initInterpretTab() {
+  renderInterpretQueue();
   renderInterpretInfo();
   if (!interpretTabInitialized) {
     interpretTabInitialized = true;
@@ -1429,9 +1549,11 @@ function persistInterpretationToAudit(options) {
     interpretDirty = false;
     updateInterpSaveStatus(true);
     if (typeof renderAuditsList === 'function') renderAuditsList();
+    if (typeof renderInterpretQueue === 'function') renderInterpretQueue();
     if (typeof syncScheduleStatusFromAudit === 'function') {
       syncScheduleStatusFromAudit(S.auditId, 'interpreted', { scheduleJobId: S.scheduleJobId });
     }
+    if (typeof renderHeader === 'function') renderHeader();
     if (!options.silent) toast(options.message || 'Interpretation saved to audit record.');
     return true;
   } catch(e) {
@@ -1672,6 +1794,9 @@ function runJotFormSubmit() {
       if (typeof S !== 'undefined' && S.auditId && typeof syncScheduleStatusFromAudit === 'function') {
         syncScheduleStatusFromAudit(S.auditId, 'complete', { force: true, scheduleJobId: S.scheduleJobId });
       }
+      if (typeof markAuditSubmitted === 'function' && S.auditId) {
+        markAuditSubmitted(S.auditId);
+      }
     } else {
       statusEl.style.color = '#e03333';
       statusEl.textContent = '✗ JotForm error: ' + (data.message || JSON.stringify(data));
@@ -1709,6 +1834,9 @@ function openInterpArchive(id) {
     S.year = rec.customer.yearBuilt || '';
     S.sqft = rec.customer.sqFt || '';
     S.coop = rec.customer.coop || '';
+    S.customerNumber = rec.customer.customerNumber != null ? rec.customer.customerNumber : null;
+    S.scheduleJobId = rec.scheduleJobId || null;
+    S.researchNotes = rec.researchNotes || '';
     S.dump = rec.voiceDump || '';
     S.photos = rec.photos || [];
     S.auditId = rec.id;
@@ -1750,4 +1878,5 @@ function openInterpArchive(id) {
     }
   }
   if (typeof toast === 'function') toast('Loaded interpretation: ' + (rec.customer.name || 'audit'));
+  if (typeof renderHeader === 'function') renderHeader();
 }

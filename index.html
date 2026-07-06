@@ -18,7 +18,8 @@
 <header class="header">
   <div class="header-main">
     <div class="header-title">Audit Field Tool</div>
-    <div class="header-sub" id="header-sub">No customer loaded</div>
+    <div class="header-customer-name" id="header-customer-name">No customer loaded</div>
+    <div class="header-pipeline" id="header-pipeline" style="display:none" aria-label="Audit pipeline status"></div>
   </div>
   <button type="button" class="header-settings-btn" id="header-settings-btn" aria-label="Settings">
     <span class="header-settings-icon" aria-hidden="true">⚙️</span>
@@ -94,7 +95,8 @@
   <section class="card">
     <div class="card-title">🔍 Research</div>
     <div class="card-sub">Web research on each scheduled job address — review and edit results before forwarding to Audit.</div>
-    <div id="research-no-key-warn" class="tc-warn" style="display:none;">⚠️ Add your Anthropic API key in More → Interpret Settings to run research.</div>
+    <div id="research-no-key-warn" class="tc-warn" style="display:none;">⚠️ No Research API key set — add it in Settings → Research Settings.</div>
+    <div class="card-sub" id="research-model-badge-wrap" style="margin-top:6px;display:none;">Model: <span id="research-model-badge" class="interp-model-badge">—</span></div>
     <div class="card-title" id="research-selected-title" style="font-size:0.95rem;margin-top:10px;">Select a job from the queue below</div>
     <div class="card-sub" id="research-selected-meta"></div>
     <button type="button" class="btn-gold btn-full" id="research-run-btn" style="margin-top:12px;">🔍 Run Research</button>
@@ -151,6 +153,7 @@
     <button type="button" class="sub-pill active" data-main="audit" data-sub="voice">Audit Data</button>
     <button type="button" class="sub-pill" data-main="audit" data-sub="tc">T&amp;C</button>
     <button type="button" class="sub-pill" data-main="audit" data-sub="photos">Photos</button>
+    <button type="button" class="sub-pill" data-main="audit" data-sub="review">Review</button>
   </div>
 
 <!-- ======================== AUDIT DATA SUB-TAB ======================== -->
@@ -343,83 +346,97 @@
 
 </div>
 
+<!-- ======================== REVIEW SUB-TAB ======================== -->
+<div id="tab-review" class="main-subpanel" style="display:none">
+
+  <div id="review-empty-msg" class="empty-msg" style="padding:16px;">No audit loaded — add customer info on Audit Data first.</div>
+
+  <div id="review-content" style="display:none;">
+    <section class="card">
+      <div class="card-title">📋 Audit Review</div>
+      <div class="card-sub">Review and edit all audit data before sending to Processing.</div>
+      <div id="review-ready-status" class="review-ready-banner" style="display:none;"></div>
+      <div class="review-stat-row">
+        <span class="review-stat-pill">Photos: <strong id="review-photo-count">0</strong></span>
+        <span class="review-stat-pill">T&amp;C Signature: <strong id="review-sig-status" class="review-sig-no">No</strong></span>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-title">Customer Info</div>
+      <div class="field-row">
+        <input class="field" id="review-f-name" type="text" placeholder="Customer name" autocomplete="off">
+        <input class="field" id="review-f-address" type="text" placeholder="Address" autocomplete="off">
+      </div>
+      <div class="field-row">
+        <input class="field" id="review-f-date" type="date">
+        <input class="field" id="review-f-year" type="text" inputmode="numeric" placeholder="Year built">
+        <input class="field" id="review-f-sqft" type="text" inputmode="numeric" placeholder="Sq ft">
+      </div>
+      <select class="field" id="review-f-coop" style="width:100%;margin-top:8px;">
+        <option value="">Select Co-op...</option>
+        <option>Arkansas Valley</option>
+        <option>C&amp;L Electric</option>
+        <option>Carroll Electric</option>
+        <option>Clay County Electric</option>
+        <option>Craighead Electric</option>
+        <option>Delta Electric</option>
+        <option>Farmers Electric</option>
+        <option>First Electric</option>
+        <option>Mississippi County Electric</option>
+        <option>Ouachita Electric</option>
+        <option>Ozarks Electric</option>
+        <option>Petit Jean Electric</option>
+        <option>Rich Mountain Electric</option>
+        <option>South Central Arkansas Electric</option>
+        <option>Southwest Arkansas Electric</option>
+        <option>Verdigris Valley Electric</option>
+        <option>Woodruff Electric</option>
+      </select>
+    </section>
+
+    <section class="card">
+      <div class="card-title">🔍 Research Notes</div>
+      <textarea class="field review-textarea" id="review-research-notes" rows="4" placeholder="No research notes"></textarea>
+    </section>
+
+    <section class="card">
+      <div class="card-title">General Notes</div>
+      <textarea class="field review-textarea" id="review-voice-dump" rows="8" placeholder="No general notes"></textarea>
+    </section>
+
+    <section class="card">
+      <div class="card-title">📷 Photo Notes</div>
+      <div class="card-sub">Read-only summary — edit notes on the Photos tab.</div>
+      <div id="review-photo-notes"><div class="empty-msg">No photo notes yet</div></div>
+    </section>
+
+    <button type="button" class="btn-gold btn-full review-send-btn" id="review-send-processing-btn">Audit Complete, Send To Processing</button>
+  </div>
+
+</div>
+
 </div><!-- /tab-audit -->
 
 <!-- ======================== PROCESSING MAIN TAB ======================== -->
 <div id="tab-processing" class="tabpanel main-tabpanel" style="display:none">
 
   <div class="main-subnav" id="subnav-processing">
-    <button type="button" class="sub-pill active" data-main="processing" data-sub="archive">Archive</button>
-    <button type="button" class="sub-pill" data-main="processing" data-sub="interpret">Interpret</button>
+    <button type="button" class="sub-pill active" data-main="processing" data-sub="interpret">Interpret</button>
+    <button type="button" class="sub-pill" data-main="processing" data-sub="archive">Archive</button>
     <button type="button" class="sub-pill" data-main="processing" data-sub="export">Export</button>
   </div>
 
-<!-- ======================== ARCHIVE SUB-TAB ======================== -->
-<div id="tab-archive" class="main-subpanel">
-
-  <section class="card">
-    <div class="row-between" style="margin-bottom:10px;">
-      <div class="card-title" style="margin-bottom:0;">Archive</div>
-      <button class="btn-gold btn-sm" id="save-btn">Save Current Audit</button>
-    </div>
-    <div class="card-sub">Saved audits on this device — organized by week and day.</div>
-    <div id="audits-list"><div class="empty-msg">No saved audits yet</div></div>
-  </section>
-
-  <section class="card">
-    <div class="card-title">💾 Restore from Backup</div>
-    <div class="card-sub">Restore audits, photos, signatures, and interpreted output from a Full Backup or Weekly Backup zip file.</div>
-    <input type="file" id="backup-restore-input" accept=".zip,application/zip" style="display:none;">
-    <button class="btn-gold btn-full" id="backup-restore-btn" style="margin-top:8px;">📂 Select Backup Zip</button>
-    <div id="backup-restore-selected" class="card-sub" style="margin-top:8px;display:none;"></div>
-  </section>
-
-  <section class="card">
-    <div class="card-title">⬆️ Import V2/V3 Audits</div>
-    <div class="card-sub">Import a bulk JSON export from Audit Field Tool V2 or V3. Select the <code>aft_saved</code> JSON file downloaded from the old app. Photos are noted as not imported (they live in the old app's storage).</div>
-    <input type="file" id="v2v3-import-input" accept=".json" style="display:none;">
-    <button class="btn-gold btn-full" id="v2v3-import-btn" style="margin-top:8px;">📂 Select V2/V3 Export JSON</button>
-  </section>
-
-  <section class="card">
-    <div class="card-title">📥 Import Legacy Audit</div>
-    <div class="card-sub">Import a single pre-bundle audit JSON. It will be added to Saved Audits for reference.</div>
-    <div class="field-row">
-      <label class="btn-outline photo-label" style="flex:1;text-align:center;">
-        📄 JSON (required)
-        <input type="file" id="legacy-json-input" accept=".json" style="display:none;">
-      </label>
-    </div>
-    <div id="legacy-import-selected" class="card-sub" style="margin-top:8px;">No JSON selected</div>
-    <button class="btn-gold btn-full" id="legacy-import-btn" style="margin-top:8px;">Import Legacy Audit</button>
-  </section>
-
-</div><!-- /tab-archive -->
-
-<!-- ======================== EXPORT SUB-TAB ======================== -->
-<div id="tab-export" class="main-subpanel" style="display:none">
-
-  <div id="export-full-backup-section" style="display:none;">
-    <section class="card export-full-backup-card">
-      <div class="card-sub">Backup every saved audit for restore on this or another device. Photos are stored in JSON (base64) so the app can import everything correctly.</div>
-      <button class="btn-gold btn-full" id="export-full-backup-btn" style="margin-top:8px;">💾 Full Backup</button>
-      <div class="pdf-progress" id="export-full-backup-progress">Building backup...</div>
-    </section>
-    <section class="card export-full-export-card" style="margin-top:10px;">
-      <div class="card-sub">Human-readable export — actual JPG photos, photo PDFs, T&amp;C PDFs, and structured text summaries (not for app restore).</div>
-      <button class="btn-outline btn-full" id="export-full-export-btn" style="margin-top:8px;">📂 Full Export</button>
-      <div class="pdf-progress" id="export-full-export-progress">Building export...</div>
-    </section>
-  </div>
-
-  <div id="weekly-batches-container">
-    <!-- Rendered by JS -->
-  </div>
-
-</div><!-- /tab-export -->
-
 <!-- ======================== INTERPRET SUB-TAB ======================== -->
-<div id="tab-interpret" class="main-subpanel" style="display:none">
+<div id="tab-interpret" class="main-subpanel">
+
+  <section class="card">
+    <div class="card-title">⚡ Interpret Queue</div>
+    <div class="card-sub">Audits sent from Review — organized by week and day. Tap to load and interpret.</div>
+    <div id="interpret-queue-list"><div class="empty-msg">No audits in queue — complete an audit on Audit → Review first.</div></div>
+  </section>
+
+  <div id="interp-workspace">
 
   <section class="card">
     <div class="card-title">⚡ Audit Interpreter</div>
@@ -487,7 +504,74 @@
     </div>
   </section>
 
+  </div><!-- /interp-workspace -->
+
 </div><!-- /tab-interpret -->
+
+<!-- ======================== ARCHIVE SUB-TAB ======================== -->
+<div id="tab-archive" class="main-subpanel" style="display:none">
+
+  <section class="card">
+    <div class="row-between" style="margin-bottom:10px;">
+      <div class="card-title" style="margin-bottom:0;">Archive</div>
+      <button class="btn-gold btn-sm" id="save-btn">Save Current Audit</button>
+    </div>
+    <div class="card-sub">Searchable audit database — organized by week and day.</div>
+    <input class="field" id="archive-search" type="search" placeholder="Search by name, address, date, co-op…" style="width:100%;margin-top:8px;">
+    <div id="audits-list"><div class="empty-msg">No saved audits yet</div></div>
+  </section>
+
+  <section class="card">
+    <div class="card-title">💾 Restore from Backup</div>
+    <div class="card-sub">Restore audits, photos, signatures, and interpreted output from a Full Backup or Weekly Backup zip file.</div>
+    <input type="file" id="backup-restore-input" accept=".zip,application/zip" style="display:none;">
+    <button class="btn-gold btn-full" id="backup-restore-btn" style="margin-top:8px;">📂 Select Backup Zip</button>
+    <div id="backup-restore-selected" class="card-sub" style="margin-top:8px;display:none;"></div>
+  </section>
+
+  <section class="card">
+    <div class="card-title">⬆️ Import V2/V3 Audits</div>
+    <div class="card-sub">Import a bulk JSON export from Audit Field Tool V2 or V3. Select the <code>aft_saved</code> JSON file downloaded from the old app. Photos are noted as not imported (they live in the old app's storage).</div>
+    <input type="file" id="v2v3-import-input" accept=".json" style="display:none;">
+    <button class="btn-gold btn-full" id="v2v3-import-btn" style="margin-top:8px;">📂 Select V2/V3 Export JSON</button>
+  </section>
+
+  <section class="card">
+    <div class="card-title">📥 Import Legacy Audit</div>
+    <div class="card-sub">Import a single pre-bundle audit JSON. It will be added to Saved Audits for reference.</div>
+    <div class="field-row">
+      <label class="btn-outline photo-label" style="flex:1;text-align:center;">
+        📄 JSON (required)
+        <input type="file" id="legacy-json-input" accept=".json" style="display:none;">
+      </label>
+    </div>
+    <div id="legacy-import-selected" class="card-sub" style="margin-top:8px;">No JSON selected</div>
+    <button class="btn-gold btn-full" id="legacy-import-btn" style="margin-top:8px;">Import Legacy Audit</button>
+  </section>
+
+</div><!-- /tab-archive -->
+
+<!-- ======================== EXPORT SUB-TAB ======================== -->
+<div id="tab-export" class="main-subpanel" style="display:none">
+
+  <div id="export-full-backup-section" style="display:none;">
+    <section class="card export-full-backup-card">
+      <div class="card-sub">Backup every saved audit for restore on this or another device. Photos are stored in JSON (base64) so the app can import everything correctly.</div>
+      <button class="btn-gold btn-full" id="export-full-backup-btn" style="margin-top:8px;">💾 Full Backup</button>
+      <div class="pdf-progress" id="export-full-backup-progress">Building backup...</div>
+    </section>
+    <section class="card export-full-export-card" style="margin-top:10px;">
+      <div class="card-sub">Human-readable export — actual JPG photos, photo PDFs, T&amp;C PDFs, and structured text summaries (not for app restore).</div>
+      <button class="btn-outline btn-full" id="export-full-export-btn" style="margin-top:8px;">📂 Full Export</button>
+      <div class="pdf-progress" id="export-full-export-progress">Building export...</div>
+    </section>
+  </div>
+
+  <div id="weekly-batches-container">
+    <!-- Rendered by JS -->
+  </div>
+
+</div><!-- /tab-export -->
 
 </div><!-- /tab-processing -->
 
@@ -555,6 +639,98 @@
       <div class="card-sub" style="margin-top:8px;">Field Mapping <span style="color:var(--sub);font-size:0.75rem;">(JSON: {"Field Name": "q5_questionId"})</span></div>
       <textarea class="voice-area more-field-full" id="jotform-field-map-textarea" style="height:120px;font-size:0.72rem;" placeholder='{\n  "Member Name - First": "q3_first",\n  "Address": "q4_address"\n}'></textarea>
       <button class="btn-gold btn-full" id="jotform-settings-save" style="margin-top:8px;">Save JotForm Settings</button>
+    </div>
+  </section>
+
+  <section class="card more-card">
+    <div class="card-title">🔍 Research Settings</div>
+    <div class="card-sub">Claude API and web search controls for the Jobs → Research tab.</div>
+
+    <div class="card-sub" style="margin-top:10px;">API Key</div>
+    <input class="field more-field-full" id="research-api-key-input" type="password" placeholder="sk-ant-..." autocomplete="off">
+    <div style="display:flex;gap:8px;margin-top:8px;">
+      <button class="btn-gold btn-full" id="research-api-key-save">Save Key</button>
+      <button class="btn-sm" id="research-test-btn">Test</button>
+    </div>
+    <div id="research-test-result" style="font-size:0.8rem;margin-top:6px;display:none;"></div>
+
+    <div class="card-sub" style="margin-top:14px;">Model</div>
+    <select class="field more-field-full" id="research-model-select">
+      <option value="claude-sonnet-5">claude-sonnet-5 (recommended)</option>
+      <option value="claude-sonnet-4-6">claude-sonnet-4-6</option>
+      <option value="claude-haiku-4-5-20251001">claude-haiku-4-5 (fast / test)</option>
+    </select>
+
+    <div class="card-sub" style="margin-top:14px;">Thinking Effort</div>
+    <select class="field more-field-full" id="research-effort-select">
+      <option value="">Off (no thinking, faster)</option>
+      <option value="low" selected>Low</option>
+      <option value="medium">Medium</option>
+      <option value="high">High</option>
+      <option value="max">Max</option>
+    </select>
+
+    <div class="card-sub" style="margin-top:14px;">Temperature <span style="color:var(--sub);font-size:0.75rem;">(used when thinking is off)</span></div>
+    <select class="field more-field-full" id="research-temperature-select">
+      <option value="0" selected>0 — deterministic</option>
+      <option value="0.3">0.3</option>
+      <option value="0.5">0.5</option>
+      <option value="0.7">0.7</option>
+      <option value="1">1</option>
+    </select>
+
+    <div class="card-sub" style="margin-top:14px;">Max Tokens</div>
+    <select class="field more-field-full" id="research-max-tokens-select">
+      <option value="2048">2048</option>
+      <option value="4096" selected>4096</option>
+      <option value="8192">8192</option>
+      <option value="12288">12288</option>
+    </select>
+
+    <div style="border-top:1px solid var(--border);margin-top:14px;padding-top:14px;">
+      <div class="card-sub" style="font-weight:600;margin-bottom:4px;">Web Search</div>
+      <div class="card-sub">Where and how Claude searches before each property research run.</div>
+
+      <div class="card-sub" style="margin-top:10px;">Search Tool</div>
+      <select class="field more-field-full" id="research-search-tool-select">
+        <option value="web_search_20250305">Basic web search</option>
+        <option value="web_search_20260209">Dynamic filtering (newer, more accurate)</option>
+      </select>
+
+      <div class="card-sub" style="margin-top:10px;">Search Strategy</div>
+      <select class="field more-field-full" id="research-search-strategy-select">
+        <option value="quick">Quick — 1–2 targeted searches</option>
+        <option value="balanced" selected>Balanced — progressive searches as needed</option>
+        <option value="thorough">Thorough — cross-reference multiple sources</option>
+      </select>
+
+      <div class="card-sub" style="margin-top:10px;">Max Searches per Run</div>
+      <select class="field more-field-full" id="research-max-searches-select">
+        <option value="2">2</option>
+        <option value="3">3</option>
+        <option value="5" selected>5</option>
+        <option value="8">8</option>
+        <option value="10">10</option>
+      </select>
+
+      <div class="card-sub" style="margin-top:10px;">Source Types to Prioritize</div>
+      <div class="research-source-checks">
+        <label class="research-source-check"><input type="checkbox" id="research-src-real-estate" checked> Real estate (Zillow, Redfin, Realtor.com)</label>
+        <label class="research-source-check"><input type="checkbox" id="research-src-assessor" checked> County assessor / property records</label>
+        <label class="research-source-check"><input type="checkbox" id="research-src-maps" checked> Maps / satellite (Google Maps, etc.)</label>
+        <label class="research-source-check"><input type="checkbox" id="research-src-utility" checked> Electric co-op / utility sites</label>
+        <label class="research-source-check"><input type="checkbox" id="research-src-general" checked> General web fallback</label>
+      </div>
+
+      <div class="card-sub" style="margin-top:10px;">Preferred Domains <span style="color:var(--sub);font-size:0.75rem;">(one per line, optional)</span></div>
+      <textarea class="voice-area more-field-full" id="research-domains-textarea" style="height:80px;font-size:0.72rem;" placeholder="zillow.com&#10;redfin.com&#10;assessor.example.gov"></textarea>
+
+      <div class="card-sub" style="margin-top:10px;">Research Instructions <span style="color:var(--sub);font-size:0.75rem;">(custom rules for every research run)</span></div>
+      <textarea class="voice-area more-field-full" id="research-instructions-textarea" style="height:140px;font-size:0.72rem;" placeholder="Loading..."></textarea>
+      <div style="display:flex;gap:8px;margin-top:8px;">
+        <button class="btn-gold btn-full" id="research-settings-save">Save Research Settings</button>
+        <button class="btn-sm" id="research-instructions-reset">Reset Instructions</button>
+      </div>
     </div>
   </section>
 
@@ -673,6 +849,18 @@
 
 </div>
 
+<!-- ARCHIVE DETAIL MODAL -->
+<div id="archive-detail-modal" class="modal" style="display:none">
+  <div class="modal-box archive-detail-box">
+    <div class="modal-header">
+      <span class="modal-title" id="archive-detail-title">Audit Archive</span>
+      <button class="btn-sm" id="archive-detail-close">✕ Close</button>
+    </div>
+    <div id="archive-detail-body" class="archive-detail-body"></div>
+    <div class="archive-detail-actions" id="archive-detail-actions"></div>
+  </div>
+</div>
+
 <!-- PHOTO NOTE MODAL -->
 <div id="photo-modal" class="modal" style="display:none">
   <div class="modal-box">
@@ -748,6 +936,7 @@
 <script src="interpret-tab.js"></script>
 <script src="customers-tab.js"></script>
 <script src="research-tab.js"></script>
+<script src="review-tab.js"></script>
 <script src="script.js"></script>
 </body>
 </html>

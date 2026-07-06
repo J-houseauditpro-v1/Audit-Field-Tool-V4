@@ -105,6 +105,7 @@ function setScheduleJobStatus(jobId, status, options) {
   jobs[idx].status = next;
   saveScheduleJobs(jobs);
   refreshScheduleListIfVisible();
+  if (typeof renderHeader === 'function') renderHeader();
   return true;
 }
 
@@ -129,7 +130,9 @@ function linkScheduleJobToAudit(jobId, auditId) {
 }
 
 function markScheduleJobComplete(jobId) {
-  return setScheduleJobStatus(jobId, 'complete', { force: true });
+  var ok = setScheduleJobStatus(jobId, 'complete', { force: true });
+  if (typeof renderHeader === 'function') renderHeader();
+  return ok;
 }
 
 function refreshScheduleListIfVisible() {
@@ -192,6 +195,18 @@ function getResearchJobPayload(job) {
     customerNumber: job.customerNumber,
     address: job.address
   };
+}
+
+function formatScheduleJobDisplayName(job) {
+  if (!job) return '—';
+  var label = '#' + job.customerNumber;
+  if (job.name && job.name.trim()) label += ' ' + job.name.trim();
+  return label;
+}
+
+function formatScheduleJobDisplayLine(job) {
+  if (!job) return '—';
+  return formatScheduleJobDisplayName(job) + (job.address ? ' — ' + job.address : '');
 }
 
 function addressKey(addr) {
