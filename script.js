@@ -531,47 +531,60 @@ document.addEventListener('DOMContentLoaded', function() {
 }); // end DOMContentLoaded
 
 // ── TABS ─────────────────────────────────────────────────────
-var currentFieldSubTab = 'voice';
-var fieldSubTabsInitialized = false;
+var currentMainTab = 'jobs';
+var currentSubTab = { jobs: 'schedule', audit: 'voice', processing: 'archive' };
+var subTabsInitialized = false;
 
-var FIELD_SUB_TAB_IDS = ['customers', 'research', 'voice', 'tc', 'photos'];
+var MAIN_TAB_CONFIG = {
+  jobs: { subs: ['schedule', 'research'], defaultSub: 'schedule' },
+  audit: { subs: ['voice', 'tc', 'photos'], defaultSub: 'voice' },
+  processing: { subs: ['archive', 'interpret', 'export'], defaultSub: 'archive' }
+};
 
-function renderResearchInfo() {
-  var nameEl = document.getElementById('research-name-display');
-  var addrEl = document.getElementById('research-address-display');
-  if (nameEl) nameEl.textContent = (typeof S !== 'undefined' && S.name) ? S.name : '—';
-  if (addrEl) addrEl.textContent = (typeof S !== 'undefined' && S.address) ? S.address : '—';
+function subPanelId(sub) { return 'tab-' + sub; }
+
+function isVoiceSubActive() {
+  return currentMainTab === 'audit' && currentSubTab.audit === 'voice';
 }
 
-function switchFieldSubTab(name, options) {
+function runSubTabInit(main, sub) {
+  if (main === 'jobs' && sub === 'schedule' && typeof initCustomersTab === 'function') initCustomersTab();
+  if (main === 'audit' && sub === 'voice' && typeof renderPhotoNotesSummary === 'function') renderPhotoNotesSummary();
+  if (main === 'audit' && sub === 'tc' && typeof renderTCInfo === 'function') renderTCInfo();
+  if (main === 'audit' && sub === 'photos') positionPhotoStickyControls();
+  if (main === 'processing' && sub === 'archive' && typeof renderAuditsList === 'function') renderAuditsList();
+  if (main === 'processing' && sub === 'interpret' && typeof initInterpretTab === 'function') initInterpretTab();
+  if (main === 'processing' && sub === 'export' && typeof renderWeeklyBatches === 'function') renderWeeklyBatches();
+}
+
+function switchSubTab(main, sub, options) {
   options = options || {};
-  if (name) currentFieldSubTab = name;
-  var fieldPanel = document.getElementById('tab-field');
-  if (!fieldPanel || fieldPanel.style.display === 'none') return;
+  if (!MAIN_TAB_CONFIG[main]) return;
+  if (sub) currentSubTab[main] = sub;
+  else sub = currentSubTab[main];
 
-  if (currentFieldSubTab !== 'voice' && !options.keepRecording) stopVoiceRec();
+  var mainPanel = document.getElementById('tab-' + main);
+  if (!mainPanel || mainPanel.style.display === 'none') return;
 
-  document.querySelectorAll('.field-pill').forEach(function(p) {
-    p.classList.toggle('active', p.dataset.field === currentFieldSubTab);
+  if (!options.keepRecording && !(main === 'audit' && sub === 'voice')) stopVoiceRec();
+
+  document.querySelectorAll('.sub-pill[data-main="' + main + '"]').forEach(function(p) {
+    p.classList.toggle('active', p.dataset.sub === sub);
   });
-  FIELD_SUB_TAB_IDS.forEach(function(id) {
-    var el = document.getElementById('tab-' + id);
-    if (el) el.style.display = (id === currentFieldSubTab) ? 'block' : 'none';
+  MAIN_TAB_CONFIG[main].subs.forEach(function(id) {
+    var el = document.getElementById(subPanelId(id));
+    if (el) el.style.display = (id === sub) ? 'block' : 'none';
   });
 
-  if (currentFieldSubTab === 'customers' && typeof initCustomersTab === 'function') initCustomersTab();
-  if (currentFieldSubTab === 'research') renderResearchInfo();
-  if (currentFieldSubTab === 'tc') renderTCInfo();
-  if (currentFieldSubTab === 'photos') positionPhotoStickyControls();
-  if (currentFieldSubTab === 'voice') renderPhotoNotesSummary();
+  runSubTabInit(main, sub);
   updateTopChromeLayout();
 }
 
-function switchMainTab(tabId, fieldSubTab) {
+function switchMainTab(mainId, subId) {
   autosaveAudit();
 
-  var activeFieldSub = fieldSubTab || currentFieldSubTab;
-  if (tabId !== 'field' || activeFieldSub !== 'voice') stopVoiceRec();
+  var activeSub = subId || currentSubTab[mainId] || (MAIN_TAB_CONFIG[mainId] && MAIN_TAB_CONFIG[mainId].defaultSub);
+  if (!(mainId === 'audit' && activeSub === 'voice')) stopVoiceRec();
 
   var gear = document.getElementById('header-settings-btn');
   if (gear) gear.classList.remove('active');
@@ -579,29 +592,32 @@ function switchMainTab(tabId, fieldSubTab) {
   document.querySelectorAll('.tab').forEach(function(b) { b.classList.remove('active'); });
   document.querySelectorAll('.tabpanel').forEach(function(p) { p.style.display = 'none'; });
 
-  var tabBtn = document.querySelector('[data-tab="' + tabId + '"]');
-  var tabPanel = document.getElementById('tab-' + tabId);
+  currentMainTab = mainId;
+  var tabBtn = document.querySelector('[data-tab="' + mainId + '"]');
+  var tabPanel = document.getElementById('tab-' + mainId);
   if (tabBtn) tabBtn.classList.add('active');
   if (tabPanel) tabPanel.style.display = 'block';
 
-  if (tabId === 'field') {
-    switchFieldSubTab(fieldSubTab || currentFieldSubTab, { keepRecording: (fieldSubTab || currentFieldSubTab) === 'voice' });
-  }
-
-  if (tabId === 'export') renderWeeklyBatches();
-  if (tabId === 'interpret' && typeof initInterpretTab === 'function') initInterpretTab();
-  if (tabId === 'audits') renderAuditsList();
+  if (subId) currentSubTab[mainId] = subId;
+  switchSubTab(mainId, currentSubTab[mainId], { keepRecording: mainId === 'audit' && currentSubTab[mainId] === 'voice' });
 }
 
-function initFieldSubTabs() {
-  if (fieldSubTabsInitialized) return;
-  fieldSubTabsInitialized = true;
-  document.querySelectorAll('.field-pill').forEach(function(pill) {
+function initSubTabs() {
+  if (subTabsInitialized) return;
+  subTabsInitialized = true;
+  document.querySelectorAll('.sub-pill').forEach(function(pill) {
     pill.addEventListener('click', function() {
       autosaveAudit();
-      switchFieldSubTab(pill.dataset.field);
+      switchSubTab(pill.dataset.main, pill.dataset.sub);
     });
   });
+}
+
+function getActiveSubnavHeight() {
+  var panel = document.getElementById('tab-' + currentMainTab);
+  if (!panel || panel.style.display === 'none') return 0;
+  var subnav = document.getElementById('subnav-' + currentMainTab);
+  return subnav ? subnav.offsetHeight : 0;
 }
 
 function updateTopChromeLayout() {
@@ -613,8 +629,7 @@ function updateTopChromeLayout() {
   tabnav.style.top = headerH + 'px';
   var total = headerH + tabnav.offsetHeight;
   document.documentElement.style.setProperty('--top-chrome-height', total + 'px');
-  var subnav = document.getElementById('field-subnav');
-  document.documentElement.style.setProperty('--field-subnav-height', subnav ? subnav.offsetHeight + 'px' : '0px');
+  document.documentElement.style.setProperty('--main-subnav-height', getActiveSubnavHeight() + 'px');
   positionPhotoStickyControls();
 }
 
@@ -651,7 +666,8 @@ function initTabs() {
       switchMainTab(btn.dataset.tab);
     });
   });
-  initFieldSubTabs();
+  initSubTabs();
+  switchSubTab('jobs', 'schedule');
 }
 
 // ── CUSTOMER FIELDS ───────────────────────────────────────────
@@ -2167,7 +2183,7 @@ function loadAudit(id) {
   renderVoiceDump();
   renderPhotoList();
   renderTCInfo();
-  switchMainTab('field', 'voice');
+  switchMainTab('audit', 'voice');
   toast('Loaded: ' + (S.name || 'audit'));
   if (typeof refreshInterpretFromLoadedAudit === 'function') refreshInterpretFromLoadedAudit();
 }

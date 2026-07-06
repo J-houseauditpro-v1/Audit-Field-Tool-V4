@@ -27,44 +27,37 @@
 
 <!-- TAB NAV -->
 <nav class="tabnav">
-  <button class="tab active" data-tab="field">
+  <button class="tab active" data-tab="jobs">
+    <span class="tab-icon">📅</span>
+    <span class="tab-label">Jobs</span>
+  </button>
+  <button class="tab" data-tab="audit">
     <span class="tab-icon">📋</span>
-    <span class="tab-label">Audit Data</span>
+    <span class="tab-label">Audit</span>
   </button>
-  <button class="tab" data-tab="audits">
-    <span class="tab-icon">📁</span>
-    <span class="tab-label">Audits</span>
-  </button>
-  <button class="tab" data-tab="interpret">
-    <span class="tab-icon">⚡</span>
-    <span class="tab-label">Interpret</span>
-  </button>
-  <button class="tab" data-tab="export">
-    <span class="tab-icon">📤</span>
-    <span class="tab-label">Export</span>
+  <button class="tab" data-tab="processing">
+    <span class="tab-icon">📦</span>
+    <span class="tab-label">Processing</span>
   </button>
 </nav>
 
-<!-- ======================== AUDIT DATA (FIELD) TAB ======================== -->
-<div id="tab-field" class="tabpanel field-tabpanel">
+<!-- ======================== JOBS MAIN TAB ======================== -->
+<div id="tab-jobs" class="tabpanel main-tabpanel">
 
-  <div class="field-subnav" id="field-subnav">
-    <button type="button" class="field-pill" data-field="customers">Customers</button>
-    <button type="button" class="field-pill" data-field="research">Research</button>
-    <button type="button" class="field-pill active" data-field="voice">Audit Data</button>
-    <button type="button" class="field-pill" data-field="tc">T&amp;C</button>
-    <button type="button" class="field-pill" data-field="photos">Photos</button>
+  <div class="main-subnav" id="subnav-jobs">
+    <button type="button" class="sub-pill active" data-main="jobs" data-sub="schedule">Schedule</button>
+    <button type="button" class="sub-pill" data-main="jobs" data-sub="research">Research</button>
   </div>
 
-<!-- ======================== CUSTOMERS SUB-TAB ======================== -->
-<div id="tab-customers" class="field-subpanel" style="display:none">
+<!-- ======================== SCHEDULE SUB-TAB ======================== -->
+<div id="tab-schedule" class="main-subpanel">
 
   <section class="card">
     <div class="row-between" style="margin-bottom:10px;">
-      <div class="card-title" style="margin-bottom:0;">📋 Customers</div>
+      <div class="card-title" style="margin-bottom:0;">📅 Schedule</div>
       <button class="btn-gold btn-sm" id="customers-refresh-btn">🔄 Refresh</button>
     </div>
-    <div class="card-sub">From Google Sheets. Tap Start Audit to pre-fill customer info.</div>
+    <div class="card-sub">Scheduled jobs from Google Sheets. Tap Start Audit to begin the research pass.</div>
     <input class="field" id="customers-search" type="search" placeholder="Search by name, address…" style="width:100%;margin-top:8px;">
     <div id="customers-fetch-status" style="font-size:0.8rem;margin-top:6px;display:none;"></div>
     <div id="customers-cache-note" class="card-sub" style="margin-top:4px;display:none;"></div>
@@ -76,95 +69,43 @@
 
 </div>
 
-<!-- ======================== RESEARCH SUB-TAB (placeholder) ======================== -->
-<div id="tab-research" class="field-subpanel" style="display:none">
+<!-- ======================== RESEARCH SUB-TAB ======================== -->
+<div id="tab-research" class="main-subpanel" style="display:none">
 
   <section class="card">
     <div class="card-title">🔍 Research</div>
-    <div class="card-sub">Property lookup using the current customer address — coming soon.</div>
+    <div class="card-sub">Web research on each scheduled job address — review and edit results before forwarding to Audit.</div>
     <p class="research-placeholder-text">
-      This tab will use the customer name and address from Audit Data to run a Claude web search and return useful property information — year built, sq ft, HVAC hints, prior permits, and other public data when available.
+      Each job from Schedule will get a Claude web search using the customer address. Results will appear here ranked by confidence (highest first), with the same review-and-edit workflow as Interpret field output.
     </p>
     <p class="research-placeholder-text">
-      Results will feed into Interpret and other workflows later. Configure your Claude API key in Settings when this feature is enabled.
+      After you review and correct the research, tap <b>Forward to Audit</b> to push findings into Research Notes and pre-fill customer info on the Audit tab.
     </p>
-    <div class="tc-info-grid" style="margin-top:12px;">
-      <div class="tc-info-row">
-        <span class="tc-info-label">Customer</span>
-        <span class="tc-info-value" id="research-name-display">—</span>
-      </div>
-      <div class="tc-info-row">
-        <span class="tc-info-label">Address</span>
-        <span class="tc-info-value" id="research-address-display">—</span>
-      </div>
-    </div>
-    <button type="button" class="btn-outline btn-full" id="research-run-btn" disabled style="margin-top:14px;opacity:0.5;">🔍 Run Research (coming soon)</button>
+    <button type="button" class="btn-gold btn-full" id="research-run-btn" disabled style="margin-top:12px;opacity:0.5;">🔍 Run Research (coming soon)</button>
+    <button type="button" class="btn-outline btn-full" id="research-forward-btn" disabled style="margin-top:8px;opacity:0.5;">→ Forward to Audit (coming soon)</button>
+  </section>
+
+  <section class="card">
+    <div class="card-title">Research Queue</div>
+    <div class="card-sub">Organized by week and day — same layout as Archive.</div>
+    <div id="research-queue-list"><div class="empty-msg">No research results yet — pull jobs from Schedule first.</div></div>
   </section>
 
 </div>
 
-<!-- ======================== T&C SUB-TAB ======================== -->
-<div id="tab-tc" class="field-subpanel" style="display:none">
+</div><!-- /tab-jobs -->
 
-  <section class="card">
-    <div class="card-title">📋 Terms & Conditions — CHESS Program</div>
-    <div class="card-sub">Customer info auto-populated from Audit Data tab. Collect signature below then generate PDF.</div>
-    <div class="tc-info-grid">
-      <div class="tc-info-row">
-        <span class="tc-info-label">Name</span>
-        <span class="tc-info-value" id="tc-name-display">—</span>
-      </div>
-      <div class="tc-info-row">
-        <span class="tc-info-label">Address</span>
-        <span class="tc-info-value" id="tc-address-display">—</span>
-      </div>
-      <div class="tc-info-row">
-        <span class="tc-info-label">Date</span>
-        <span class="tc-info-value" id="tc-date-display">—</span>
-      </div>
-    </div>
-    <div id="tc-no-customer-msg" class="tc-warn" style="display:none;">
-      ⚠️ No customer loaded — go to Audit Data tab and fill in customer info first.
-    </div>
-  </section>
+<!-- ======================== AUDIT MAIN TAB ======================== -->
+<div id="tab-audit" class="tabpanel main-tabpanel" style="display:none">
 
-  <section class="card">
-    <div class="card-title">Customer Signature</div>
-    <div class="card-sub">Tap the button below to open the signature screen. Hand phone to customer to sign.</div>
-    <div id="tc-sig-preview" class="sig-preview-box" style="display:none;">
-      <img id="tc-sig-preview-img" src="" alt="Signature preview" style="max-width:100%; border-radius:6px;">
-      <div style="font-size:0.78rem; color:#4caf50; margin-top:6px;">✓ Signature captured</div>
-    </div>
-    <div id="tc-no-sig-msg" class="card-sub" style="color:#666;">No signature yet</div>
-    <div style="display:flex; gap:10px; margin-top:12px;">
-      <button class="btn-gold btn-full" id="tc-open-sig-btn">✍️ Open Signature Screen</button>
-      <button class="btn-sm" id="tc-sig-clear" style="display:none;">Clear</button>
-    </div>
-  </section>
-
-  <!-- FULL SCREEN SIGNATURE OVERLAY -->
-  <div id="sig-overlay" class="sig-overlay" style="display:none;">
-    <div class="sig-overlay-inner">
-      <div class="sig-overlay-title">Customer Signature</div>
-      <div class="sig-overlay-sub">Sign with your finger in the white box below</div>
-      <div class="sig-canvas-wrapper">
-        <canvas id="tc-sig-canvas" class="sig-canvas-full"></canvas>
-      </div>
-      <div class="sig-overlay-actions">
-        <div class="sig-overlay-toolbar">
-          <button class="btn-sm" id="tc-sig-cancel">← Back</button>
-          <button class="btn-sm" id="tc-sig-undo">↩ Undo</button>
-          <button class="btn-sm" id="tc-sig-redo-clear">🗑 Clear</button>
-        </div>
-        <button class="btn-gold btn-full" id="tc-sig-save-btn">✓ Save Signature</button>
-      </div>
-    </div>
+  <div class="main-subnav" id="subnav-audit">
+    <button type="button" class="sub-pill active" data-main="audit" data-sub="voice">Audit Data</button>
+    <button type="button" class="sub-pill" data-main="audit" data-sub="tc">T&amp;C</button>
+    <button type="button" class="sub-pill" data-main="audit" data-sub="photos">Photos</button>
   </div>
 
-</div>
-
 <!-- ======================== AUDIT DATA SUB-TAB ======================== -->
-<div id="tab-voice" class="field-subpanel">
+<div id="tab-voice" class="main-subpanel">
 
   <!-- CUSTOMER INFO -->
   <section class="card">
@@ -222,6 +163,15 @@
     </div>
   </section>
 
+  <!-- RESEARCH NOTES — populated from Jobs → Research after review -->
+  <section class="card">
+    <div class="row-between">
+      <div class="card-title">🔍 Research Notes</div>
+    </div>
+    <div class="card-sub">Populated from reviewed web research on the Jobs → Research tab. Can pre-fill customer info and general notes.</div>
+    <div id="research-notes-summary"><div class="empty-msg">No research notes yet</div></div>
+  </section>
+
   <!-- GENERAL NOTES -->
   <section class="card">
     <div class="general-notes-toolbar">
@@ -232,19 +182,79 @@
     <textarea class="voice-area" id="voice-dump" placeholder="Type notes here, or tap Record Voice to dictate while reading the cheat sheet."></textarea>
   </section>
 
-  <!-- PHOTO NOTES SUMMARY — auto-populated, read-only, separate from General Notes -->
+  <!-- PHOTO NOTES SUMMARY -->
   <section class="card">
     <div class="row-between">
       <div class="card-title">📷 Photo Notes <span id="photo-notes-count" class="photo-notes-count"></span></div>
     </div>
-    <div class="card-sub">Auto-collected from notes on the Photos tab — organized by category.</div>
+    <div class="card-sub">Auto-collected from notes on the Photos sub-tab — organized by category.</div>
     <div id="photo-notes-summary"><div class="empty-msg">No photo notes yet</div></div>
   </section>
 
 </div>
 
+<!-- ======================== T&C SUB-TAB ======================== -->
+<div id="tab-tc" class="main-subpanel" style="display:none">
+
+  <section class="card">
+    <div class="card-title">📋 Terms & Conditions — CHESS Program</div>
+    <div class="card-sub">Customer info auto-populated from Audit Data. Collect signature below then generate PDF.</div>
+    <div class="tc-info-grid">
+      <div class="tc-info-row">
+        <span class="tc-info-label">Name</span>
+        <span class="tc-info-value" id="tc-name-display">—</span>
+      </div>
+      <div class="tc-info-row">
+        <span class="tc-info-label">Address</span>
+        <span class="tc-info-value" id="tc-address-display">—</span>
+      </div>
+      <div class="tc-info-row">
+        <span class="tc-info-label">Date</span>
+        <span class="tc-info-value" id="tc-date-display">—</span>
+      </div>
+    </div>
+    <div id="tc-no-customer-msg" class="tc-warn" style="display:none;">
+      ⚠️ No customer loaded — go to Audit Data tab and fill in customer info first.
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="card-title">Customer Signature</div>
+    <div class="card-sub">Tap the button below to open the signature screen. Hand phone to customer to sign.</div>
+    <div id="tc-sig-preview" class="sig-preview-box" style="display:none;">
+      <img id="tc-sig-preview-img" src="" alt="Signature preview" style="max-width:100%; border-radius:6px;">
+      <div style="font-size:0.78rem; color:#4caf50; margin-top:6px;">✓ Signature captured</div>
+    </div>
+    <div id="tc-no-sig-msg" class="card-sub" style="color:#666;">No signature yet</div>
+    <div style="display:flex; gap:10px; margin-top:12px;">
+      <button class="btn-gold btn-full" id="tc-open-sig-btn">✍️ Open Signature Screen</button>
+      <button class="btn-sm" id="tc-sig-clear" style="display:none;">Clear</button>
+    </div>
+  </section>
+
+  <!-- FULL SCREEN SIGNATURE OVERLAY -->
+  <div id="sig-overlay" class="sig-overlay" style="display:none;">
+    <div class="sig-overlay-inner">
+      <div class="sig-overlay-title">Customer Signature</div>
+      <div class="sig-overlay-sub">Sign with your finger in the white box below</div>
+      <div class="sig-canvas-wrapper">
+        <canvas id="tc-sig-canvas" class="sig-canvas-full"></canvas>
+      </div>
+      <div class="sig-overlay-actions">
+        <div class="sig-overlay-toolbar">
+          <button class="btn-sm" id="tc-sig-cancel">← Back</button>
+          <button class="btn-sm" id="tc-sig-undo">↩ Undo</button>
+          <button class="btn-sm" id="tc-sig-redo-clear">🗑 Clear</button>
+        </div>
+        <button class="btn-gold btn-full" id="tc-sig-save-btn">✓ Save Signature</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
 <!-- ======================== PHOTOS SUB-TAB ======================== -->
-<div id="tab-photos" class="field-subpanel" style="display:none">
+<div id="tab-photos" class="main-subpanel" style="display:none">
 
   <section class="card" id="photo-controls-sticky">
     <div class="row-between" style="margin-bottom:8px;">
@@ -284,16 +294,26 @@
 
 </div>
 
-</div><!-- /tab-field -->
+</div><!-- /tab-audit -->
 
-<!-- ======================== AUDITS TAB ======================== -->
-<div id="tab-audits" class="tabpanel" style="display:none">
+<!-- ======================== PROCESSING MAIN TAB ======================== -->
+<div id="tab-processing" class="tabpanel main-tabpanel" style="display:none">
+
+  <div class="main-subnav" id="subnav-processing">
+    <button type="button" class="sub-pill active" data-main="processing" data-sub="archive">Archive</button>
+    <button type="button" class="sub-pill" data-main="processing" data-sub="interpret">Interpret</button>
+    <button type="button" class="sub-pill" data-main="processing" data-sub="export">Export</button>
+  </div>
+
+<!-- ======================== ARCHIVE SUB-TAB ======================== -->
+<div id="tab-archive" class="main-subpanel">
 
   <section class="card">
     <div class="row-between" style="margin-bottom:10px;">
-      <div class="card-title" style="margin-bottom:0;">Saved Audits</div>
+      <div class="card-title" style="margin-bottom:0;">Archive</div>
       <button class="btn-gold btn-sm" id="save-btn">Save Current Audit</button>
     </div>
+    <div class="card-sub">Saved audits on this device — organized by week and day.</div>
     <div id="audits-list"><div class="empty-msg">No saved audits yet</div></div>
   </section>
 
@@ -325,10 +345,10 @@
     <button class="btn-gold btn-full" id="legacy-import-btn" style="margin-top:8px;">Import Legacy Audit</button>
   </section>
 
-</div>
+</div><!-- /tab-archive -->
 
-<!-- ======================== EXPORT TAB ======================== -->
-<div id="tab-export" class="tabpanel" style="display:none">
+<!-- ======================== EXPORT SUB-TAB ======================== -->
+<div id="tab-export" class="main-subpanel" style="display:none">
 
   <div id="export-full-backup-section" style="display:none;">
     <section class="card export-full-backup-card">
@@ -347,10 +367,10 @@
     <!-- Rendered by JS -->
   </div>
 
-</div>
+</div><!-- /tab-export -->
 
-<!-- ======================== INTERPRET TAB ======================== -->
-<div id="tab-interpret" class="tabpanel" style="display:none">
+<!-- ======================== INTERPRET SUB-TAB ======================== -->
+<div id="tab-interpret" class="main-subpanel" style="display:none">
 
   <section class="card">
     <div class="card-title">⚡ Audit Interpreter</div>
@@ -418,7 +438,9 @@
     </div>
   </section>
 
-</div>
+</div><!-- /tab-interpret -->
+
+</div><!-- /tab-processing -->
 
 <!-- ======================== MORE TAB (Contacts + Notes) ======================== -->
 <div id="tab-more" class="tabpanel" style="display:none">
@@ -489,7 +511,7 @@
 
   <section class="card more-card">
     <div class="card-title">📊 Google Sheets Settings</div>
-    <div class="card-sub">Configure the Customers tab to pull from your Google Sheets spreadsheet.</div>
+    <div class="card-sub">Configure the Schedule tab to pull from your Google Sheets spreadsheet.</div>
     <div class="card-sub" style="margin-top:10px;">Spreadsheet ID</div>
     <input class="field more-field-full" id="gs-sheet-id-input" type="text" placeholder="From the sheet URL" autocomplete="off">
     <div class="card-sub" style="margin-top:8px;">Range</div>

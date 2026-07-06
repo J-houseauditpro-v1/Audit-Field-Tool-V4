@@ -1713,13 +1713,17 @@ function openInterpArchive(id) {
   interpretLastMeta = rec.interpretedOutput.interpretMeta || null;
   interpretDirty = false;
 
-  // Switch to Interpret tab
-  document.querySelectorAll('.tab').forEach(function(b) { b.classList.remove('active'); });
-  document.querySelectorAll('.tabpanel').forEach(function(p) { p.style.display = 'none'; });
-  var interpBtn = document.querySelector('[data-tab="interpret"]');
-  var interpPanel = document.getElementById('tab-interpret');
-  if (interpBtn) interpBtn.classList.add('active');
-  if (interpPanel) interpPanel.style.display = 'block';
+  // Switch to Processing → Interpret
+  if (typeof switchMainTab === 'function') {
+    switchMainTab('processing', 'interpret');
+  } else {
+    document.querySelectorAll('.tab').forEach(function(b) { b.classList.remove('active'); });
+    document.querySelectorAll('.tabpanel').forEach(function(p) { p.style.display = 'none'; });
+    var interpPanel = document.getElementById('tab-interpret');
+    var procPanel = document.getElementById('tab-processing');
+    if (procPanel) procPanel.style.display = 'block';
+    if (interpPanel) interpPanel.style.display = 'block';
+  }
 
   renderInterpretInfo();
   renderInterpretOutput(interpretLastParsed);

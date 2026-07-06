@@ -113,9 +113,11 @@ body {
 
 /* TAB PANELS */
 .tabpanel { padding: 12px; }
+.main-tabpanel,
 .field-tabpanel {
   padding: 0;
 }
+.main-subnav,
 .field-subnav {
   display: flex;
   gap: 6px;
@@ -129,7 +131,9 @@ body {
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
 }
+.main-subnav::-webkit-scrollbar,
 .field-subnav::-webkit-scrollbar { display: none; }
+.sub-pill,
 .field-pill {
   flex: 1 1 auto;
   min-width: 0;
@@ -143,11 +147,13 @@ body {
   white-space: nowrap;
   cursor: pointer;
 }
+.sub-pill.active,
 .field-pill.active {
   background: var(--gold);
   color: #111;
   border-color: var(--gold);
 }
+.main-subpanel,
 .field-subpanel {
   padding: 12px;
 }
@@ -1115,7 +1121,7 @@ body.modal-open {
    ============================================================ */
 #photo-controls-sticky {
   position: sticky;
-  top: calc(var(--top-chrome-height) + var(--field-subnav-height, 0px));
+  top: calc(var(--top-chrome-height) + var(--main-subnav-height, var(--field-subnav-height, 0px)));
   z-index: 60;
   background: var(--bg2);
 }

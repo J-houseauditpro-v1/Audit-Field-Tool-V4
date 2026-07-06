@@ -208,7 +208,7 @@ function startAuditFromCustomer(row) {
   if (typeof renderPhotoList === 'function') renderPhotoList();
   // Switch to Audit Data sub-tab
   if (typeof switchMainTab === 'function') {
-    switchMainTab('field', 'voice');
+    switchMainTab('audit', 'voice');
   }
   toast('Started audit for ' + (row.name || 'customer'));
 }
