@@ -535,13 +535,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // ── TABS ─────────────────────────────────────────────────────
 var currentMainTab = 'jobs';
-var currentSubTab = { jobs: 'schedule', audit: 'voice', processing: 'archive' };
+var currentSubTab = { jobs: 'schedule', audit: 'voice', processing: 'interpret' };
 var subTabsInitialized = false;
 
 var MAIN_TAB_CONFIG = {
   jobs: { subs: ['schedule', 'research'], defaultSub: 'schedule' },
-  audit: { subs: ['voice', 'tc', 'photos'], defaultSub: 'voice' },
-  processing: { subs: ['archive', 'interpret', 'export'], defaultSub: 'archive' }
+  audit: { subs: ['voice', 'tc', 'photos', 'review'], defaultSub: 'voice' },
+  processing: { subs: ['interpret', 'archive', 'export'], defaultSub: 'interpret' }
 };
 
 function subPanelId(sub) { return 'tab-' + sub; }
@@ -557,6 +557,7 @@ function runSubTabInit(main, sub) {
   if (main === 'audit' && sub === 'voice' && typeof renderResearchNotesSummary === 'function') renderResearchNotesSummary();
   if (main === 'audit' && sub === 'tc' && typeof renderTCInfo === 'function') renderTCInfo();
   if (main === 'audit' && sub === 'photos') positionPhotoStickyControls();
+  if (main === 'audit' && sub === 'review' && typeof initReviewTab === 'function') initReviewTab();
   if (main === 'processing' && sub === 'archive' && typeof renderAuditsList === 'function') renderAuditsList();
   if (main === 'processing' && sub === 'interpret' && typeof initInterpretTab === 'function') initInterpretTab();
   if (main === 'processing' && sub === 'export' && typeof renderWeeklyBatches === 'function') renderWeeklyBatches();
@@ -758,12 +759,11 @@ function getAuditPipelineIndex() {
     if (jobStatus !== 'ready') reach(1);
   }
 
-  if (saved && (((saved.voiceDump || '').trim()) || (saved.photos || []).length)) reach(2);
-  if (job && typeof normalizeScheduleStatus === 'function' && normalizeScheduleStatus(job.status) === 'complete') reach(2);
+  if (saved && saved.readyForProcessingAt) reach(2);
 
   if (saved && typeof auditHasInterpretation === 'function' && auditHasInterpretation(saved)) reach(3);
+  else if (typeof interpretLastParsed !== 'undefined' && interpretLastParsed && interpretLastParsed.fields && interpretLastParsed.fields.length && S.auditId) reach(3);
   if (job && typeof normalizeScheduleStatus === 'function' && normalizeScheduleStatus(job.status) === 'interpreted') reach(3);
-  if (typeof interpretLastParsed !== 'undefined' && interpretLastParsed && interpretLastParsed.fields && interpretLastParsed.fields.length) reach(3);
 
   if (saved && saved.submittedAt) reach(4);
   if (saved && saved.archivedAt) reach(5);
@@ -801,14 +801,13 @@ function markAuditSubmitted(auditId) {
   setSaved(saved);
   if (typeof maybeArchiveAuditRecord === 'function') maybeArchiveAuditRecord(saved[recIdx]);
   renderHeader();
+  if (typeof renderInterpretQueue === 'function') renderInterpretQueue();
   return true;
 }
 
 function maybeArchiveAuditRecord(auditRec) {
-  if (!auditRec || auditRec.archivedAt || !auditRec.submittedAt) return false;
-  var job = typeof getScheduleJobByAuditId === 'function' ? getScheduleJobByAuditId(auditRec.id) : null;
-  var jobComplete = job && typeof normalizeScheduleStatus === 'function' && normalizeScheduleStatus(job.status) === 'complete';
-  if (!jobComplete) return false;
+  if (!auditRec || auditRec.archivedAt) return false;
+  if (!auditRec.submittedAt) return false;
   auditRec.archivedAt = new Date().toISOString();
   var saved = getSaved().slice();
   var idx = saved.findIndex(function(a) { return a.id === auditRec.id; });
@@ -817,6 +816,7 @@ function maybeArchiveAuditRecord(auditRec) {
     setSaved(saved);
   }
   renderHeader();
+  if (typeof renderAuditsList === 'function') renderAuditsList();
   return true;
 }
 
@@ -2073,6 +2073,148 @@ function initAuditsTab() {
     if (confirm('Save current audit and start a fresh one?')) { saveAudit(); clearCurrent(); }
   });
   initBackupRestore();
+  initArchiveSearch();
+  initArchiveDetailModal();
+}
+
+var archiveSearchWired = false;
+function initArchiveSearch() {
+  var input = document.getElementById('archive-search');
+  if (!input || archiveSearchWired) return;
+  archiveSearchWired = true;
+  input.addEventListener('input', function() {
+    renderAuditsList(input.value.trim().toLowerCase());
+  });
+}
+
+function initArchiveDetailModal() {
+  var closeBtn = document.getElementById('archive-detail-close');
+  var modal = document.getElementById('archive-detail-modal');
+  if (closeBtn) closeBtn.addEventListener('click', closeArchiveDetailModal);
+  if (modal) {
+    modal.addEventListener('click', function(e) {
+      if (e.target === modal) closeArchiveDetailModal();
+    });
+  }
+}
+
+function closeArchiveDetailModal() {
+  var modal = document.getElementById('archive-detail-modal');
+  if (modal) modal.style.display = 'none';
+  unlockPageScroll();
+}
+
+function auditMatchesArchiveSearch(audit, filter) {
+  if (!filter) return true;
+  var c = audit.customer || {};
+  var hay = [
+    c.name, c.address, c.date, c.coop, c.yearBuilt, c.sqFt,
+    audit.id, audit.researchNotes, audit.voiceDump
+  ].join(' ').toLowerCase();
+  return hay.indexOf(filter) !== -1;
+}
+
+function downloadTextContent(filename, content) {
+  var blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function openArchiveDetailModal(id) {
+  var saved = getSaved();
+  var audit = saved.find(function(a) { return a.id === id; });
+  if (!audit) return;
+  var modal = document.getElementById('archive-detail-modal');
+  var titleEl = document.getElementById('archive-detail-title');
+  var bodyEl = document.getElementById('archive-detail-body');
+  var actionsEl = document.getElementById('archive-detail-actions');
+  if (!modal || !bodyEl) return;
+
+  var c = audit.customer || {};
+  if (titleEl) titleEl.textContent = c.name || 'Audit Archive';
+  var photoCount = (audit.photos || []).length;
+  var hasSig = auditHasSignature(audit);
+  var lines = [];
+  lines.push('Customer: ' + (c.name || '—'));
+  lines.push('Address: ' + (c.address || '—'));
+  lines.push('Date: ' + (c.date || '—'));
+  lines.push('Co-op: ' + (c.coop || '—'));
+  lines.push('Year: ' + (c.yearBuilt || '—'));
+  lines.push('Sq Ft: ' + (c.sqFt || '—'));
+  lines.push('Photos: ' + photoCount);
+  lines.push('T&C Signature: ' + (hasSig ? 'Yes' : 'No'));
+  lines.push('Sent to Processing: ' + (audit.readyForProcessingAt ? new Date(audit.readyForProcessingAt).toLocaleString() : 'No'));
+  lines.push('Interpreted: ' + (auditHasInterpretation(audit) ? 'Yes' : 'No'));
+  lines.push('Submitted: ' + (audit.submittedAt ? new Date(audit.submittedAt).toLocaleString() : 'No'));
+  lines.push('Archived: ' + (audit.archivedAt ? new Date(audit.archivedAt).toLocaleString() : 'No'));
+  lines.push('');
+  if (audit.researchNotes && audit.researchNotes.trim()) {
+    lines.push('RESEARCH NOTES');
+    lines.push(audit.researchNotes.trim());
+    lines.push('');
+  }
+  lines.push('GENERAL NOTES');
+  lines.push((audit.voiceDump && audit.voiceDump.trim()) ? audit.voiceDump.trim() : '(none)');
+  lines.push('');
+  var photoNotes = buildPhotoNotesArray(audit.photos);
+  lines.push('PHOTO NOTES (' + photoNotes.length + ')');
+  if (photoNotes.length) {
+    photoNotes.forEach(function(p) {
+      lines.push('- [' + (p.categoryLabel || p.category || 'Photo') + '] ' + p.note);
+    });
+  } else {
+    lines.push('(none)');
+  }
+  if (auditHasInterpretation(audit) && audit.interpretedOutput.notes) {
+    lines.push('');
+    lines.push('INTERPRETER NOTES');
+    lines.push(audit.interpretedOutput.notes);
+  }
+
+  bodyEl.innerHTML = '<pre class="archive-detail-pre">' + escapeHtml(lines.join('\n')) + '</pre>';
+
+  if (actionsEl) {
+    actionsEl.innerHTML =
+      '<button type="button" class="btn-gold btn-sm archive-action-btn" data-action="load" data-id="' + escapeHtml(audit.id) + '">Load</button>' +
+      '<button type="button" class="btn-sm archive-action-btn" data-action="photos" data-id="' + escapeHtml(audit.id) + '">📷 Photos</button>' +
+      '<button type="button" class="btn-sm archive-action-btn" data-action="photo-pdf" data-id="' + escapeHtml(audit.id) + '">Photo PDF</button>' +
+      '<button type="button" class="btn-sm archive-action-btn" data-action="tc-pdf" data-id="' + escapeHtml(audit.id) + '">T&amp;C PDF</button>' +
+      '<button type="button" class="btn-sm archive-action-btn" data-action="summary" data-id="' + escapeHtml(audit.id) + '">Text Summary</button>' +
+      (auditHasInterpretation(audit) ? '<button type="button" class="btn-sm archive-action-btn" data-action="interp" data-id="' + escapeHtml(audit.id) + '">Interp Summary</button>' : '');
+
+    actionsEl.querySelectorAll('.archive-action-btn').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        runArchiveAction(btn.dataset.action, btn.dataset.id);
+      });
+    });
+  }
+
+  modal.style.display = 'flex';
+  lockPageScroll();
+}
+
+function runArchiveAction(action, id) {
+  var saved = getSaved();
+  var audit = saved.find(function(a) { return a.id === id; });
+  if (!audit) return;
+  var safeName = (audit.customer && audit.customer.name ? audit.customer.name : 'audit').replace(/[^a-zA-Z0-9_-]/g, '_');
+  if (action === 'load') { closeArchiveDetailModal(); loadAudit(id); return; }
+  if (action === 'photos') { exportAuditPhotosZip(audit); return; }
+  if (action === 'photo-pdf') { exportSavedPhotoPDF(audit); return; }
+  if (action === 'tc-pdf') { generateTCPDFFromRecord(audit, null); return; }
+  if (action === 'summary') { downloadTextContent(safeName + '-audit-summary.txt', buildAuditTextSummary(audit)); return; }
+  if (action === 'interp') {
+    var text = buildInterpretTextSummary(audit);
+    if (text) downloadTextContent(safeName + '-interpretation.txt', text);
+    else toast('No interpretation saved for this audit.');
+    return;
+  }
 }
 
 // Core upsert into the Saved Audits list — shared by the manual Save button
@@ -2131,6 +2273,7 @@ function persistAuditRecord() {
     if (!rec.researchNotes && existing.researchNotes) rec.researchNotes = existing.researchNotes;
     if (existing.submittedAt) rec.submittedAt = existing.submittedAt;
     if (existing.archivedAt) rec.archivedAt = existing.archivedAt;
+    if (existing.readyForProcessingAt) rec.readyForProcessingAt = existing.readyForProcessingAt;
   }
   if (idx >= 0) saved[idx] = rec; else saved.unshift(rec);
   setSaved(saved);
@@ -2385,12 +2528,25 @@ function deleteAudit(id) {
   });
 }
 
-function renderAuditsList() {
+function renderAuditsList(searchFilter) {
   var list = document.getElementById('audits-list');
+  if (!list) return;
   var saved = getSaved();
-  if (!saved.length) { list.innerHTML = '<div class="empty-msg">No saved audits yet</div>'; return; }
+  var filter = searchFilter;
+  if (filter === undefined) {
+    var searchInput = document.getElementById('archive-search');
+    filter = searchInput ? searchInput.value.trim().toLowerCase() : '';
+  }
+  var filtered = filter ? saved.filter(function(a) { return auditMatchesArchiveSearch(a, filter); }) : saved;
 
-  var weeks = groupAuditsByWeek(saved);
+  if (!filtered.length) {
+    list.innerHTML = filter
+      ? '<div class="empty-msg">No audits match "' + escapeHtml(filter) + '"</div>'
+      : '<div class="empty-msg">No saved audits yet</div>';
+    return;
+  }
+
+  var weeks = groupAuditsByWeek(filtered);
   list.innerHTML = '';
 
   weeks.forEach(function(week) {
@@ -2423,10 +2579,22 @@ function renderAuditsList() {
   list.querySelectorAll('.load-btn').forEach(function(btn) {
     btn.addEventListener('click', function() { loadAudit(btn.dataset.id); });
   });
+  list.querySelectorAll('.view-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() { openArchiveDetailModal(btn.dataset.id); });
+  });
   list.querySelectorAll('.photos-btn').forEach(function(btn) {
     btn.addEventListener('click', function() {
       var audit = saved.find(function(a) { return a.id === btn.dataset.id; });
       if (audit) exportAuditPhotosZip(audit);
+    });
+  });
+  list.querySelectorAll('.summary-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var audit = saved.find(function(a) { return a.id === btn.dataset.id; });
+      if (audit) {
+        var safeName = (audit.customer.name || 'audit').replace(/[^a-zA-Z0-9_-]/g, '_');
+        downloadTextContent(safeName + '-audit-summary.txt', buildAuditTextSummary(audit));
+      }
     });
   });
   list.querySelectorAll('.del-btn').forEach(function(btn) {
@@ -2434,29 +2602,25 @@ function renderAuditsList() {
       if (confirm('Delete this saved audit?')) deleteAudit(btn.dataset.id);
     });
   });
-  list.querySelectorAll('.interp-view-btn').forEach(function(btn) {
-    btn.addEventListener('click', function() {
-      if (typeof openInterpArchive === 'function') openInterpArchive(btn.dataset.id);
-    });
-  });
 }
 
 function renderAuditsListRow(a) {
   var name = a.customer.name || 'Unnamed';
   var date = formatExportRowDate(a.customer.date || '—');
+  var photoCount = (a.photos || []).length;
   var metaLine = a.legacyImport
-    ? (date + ' · 📥 legacy import · ' + formatInterpretStatus(a))
-    : formatInterpretStatus(a);
-  var interpBadge = auditHasInterpretation(a) ? '<span class="interp-badge" title="Interpreted">⚡</span>' : '';
-  return '<div class="week-audit-row' + (a.id === S.auditId ? ' is-current' : '') + '">' +
+    ? (date + ' · 📥 legacy · ' + photoCount + ' photos')
+    : (date + ' · ' + photoCount + ' photos' + (a.archivedAt ? ' · Archived' : ''));
+  return '<div class="week-audit-row archive-audit-row' + (a.id === S.auditId ? ' is-current' : '') + '">' +
     '<div class="week-audit-info">' +
-      '<div class="week-audit-name">' + escapeHtml(name) + interpBadge + '</div>' +
-      '<div class="week-audit-meta">' + metaLine + '</div>' +
+      '<div class="week-audit-name">' + escapeHtml(name) + '</div>' +
+      '<div class="week-audit-meta">' + escapeHtml(metaLine) + '</div>' +
     '</div>' +
-    '<div class="week-audit-btns">' +
+    '<div class="week-audit-btns archive-audit-btns">' +
       '<button class="btn-xs load-btn" data-id="' + a.id + '">Load</button>' +
+      '<button class="btn-xs view-btn" data-id="' + a.id + '">View</button>' +
       '<button class="btn-xs photos-btn" data-id="' + a.id + '">📷</button>' +
-      '<button class="btn-xs interp-view-btn" data-id="' + a.id + '"' + (auditHasInterpretation(a) ? '' : ' style="display:none"') + ' title="View interpretation">⚡</button>' +
+      '<button class="btn-xs summary-btn" data-id="' + a.id + '">Text</button>' +
       '<button class="btn-xs btn-danger-sm del-btn" data-id="' + a.id + '">🗑</button>' +
     '</div>' +
   '</div>';

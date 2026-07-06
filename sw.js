@@ -1,5 +1,5 @@
-const CACHE = 'aft-v62';
-const FILES = ['index.html','style.css','script.js','idb-contacts-notes.js','contacts-tab.js','notes-tab.js','interpret-tab.js','customers-tab.js','research-tab.js','manifest.json'];
+const CACHE = 'aft-v63';
+const FILES = ['index.html','style.css','script.js','idb-contacts-notes.js','contacts-tab.js','notes-tab.js','interpret-tab.js','customers-tab.js','research-tab.js','review-tab.js','manifest.json'];
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES)));
   self.skipWaiting();

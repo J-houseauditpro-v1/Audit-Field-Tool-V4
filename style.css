@@ -2034,6 +2034,73 @@ body.modal-open {
   flex-shrink: 0;
 }
 
+/* ── REVIEW TAB ─────────────────────────────────── */
+.review-stat-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+.review-stat-pill {
+  font-size: 0.78rem;
+  color: var(--sub);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 4px 10px;
+}
+.review-sig-yes { color: #4caf50; }
+.review-sig-no { color: #e03333; }
+.review-textarea {
+  width: 100%;
+  min-height: 80px;
+  resize: vertical;
+}
+.review-send-btn {
+  margin: 12px 0 20px;
+  color: #111;
+  font-weight: 700;
+}
+.review-ready-banner {
+  margin-top: 8px;
+  font-size: 0.8rem;
+  color: #4caf50;
+}
+
+/* ── ARCHIVE ─────────────────────────────────── */
+.archive-audit-btns {
+  flex-wrap: wrap;
+  max-width: 100%;
+}
+.archive-detail-box {
+  max-height: 90vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.archive-detail-body {
+  overflow-y: auto;
+  flex: 1;
+  margin-top: 8px;
+}
+.archive-detail-pre {
+  white-space: pre-wrap;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: var(--text);
+  font-family: inherit;
+}
+.archive-detail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+.interpret-queue-row {
+  cursor: default;
+}
+
 /* ── CUSTOMERS / SCHEDULE CARDS ────────────────────────────────── */
 .customer-card {
   background: var(--card-bg, #1c1c1e);

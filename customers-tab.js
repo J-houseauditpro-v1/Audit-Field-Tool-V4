@@ -131,7 +131,6 @@ function linkScheduleJobToAudit(jobId, auditId) {
 
 function markScheduleJobComplete(jobId) {
   var ok = setScheduleJobStatus(jobId, 'complete', { force: true });
-  if (ok && typeof maybeArchiveLinkedAudit === 'function') maybeArchiveLinkedAudit(jobId);
   if (typeof renderHeader === 'function') renderHeader();
   return ok;
 }
