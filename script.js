@@ -531,6 +531,95 @@ document.addEventListener('DOMContentLoaded', function() {
 }); // end DOMContentLoaded
 
 // ── TABS ─────────────────────────────────────────────────────
+var currentMainTab = 'jobs';
+var currentSubTab = { jobs: 'schedule', audit: 'voice', processing: 'archive' };
+var subTabsInitialized = false;
+
+var MAIN_TAB_CONFIG = {
+  jobs: { subs: ['schedule', 'research'], defaultSub: 'schedule' },
+  audit: { subs: ['voice', 'tc', 'photos'], defaultSub: 'voice' },
+  processing: { subs: ['archive', 'interpret', 'export'], defaultSub: 'archive' }
+};
+
+function subPanelId(sub) { return 'tab-' + sub; }
+
+function isVoiceSubActive() {
+  return currentMainTab === 'audit' && currentSubTab.audit === 'voice';
+}
+
+function runSubTabInit(main, sub) {
+  if (main === 'jobs' && sub === 'schedule' && typeof initCustomersTab === 'function') initCustomersTab();
+  if (main === 'audit' && sub === 'voice' && typeof renderPhotoNotesSummary === 'function') renderPhotoNotesSummary();
+  if (main === 'audit' && sub === 'tc' && typeof renderTCInfo === 'function') renderTCInfo();
+  if (main === 'audit' && sub === 'photos') positionPhotoStickyControls();
+  if (main === 'processing' && sub === 'archive' && typeof renderAuditsList === 'function') renderAuditsList();
+  if (main === 'processing' && sub === 'interpret' && typeof initInterpretTab === 'function') initInterpretTab();
+  if (main === 'processing' && sub === 'export' && typeof renderWeeklyBatches === 'function') renderWeeklyBatches();
+}
+
+function switchSubTab(main, sub, options) {
+  options = options || {};
+  if (!MAIN_TAB_CONFIG[main]) return;
+  if (sub) currentSubTab[main] = sub;
+  else sub = currentSubTab[main];
+
+  var mainPanel = document.getElementById('tab-' + main);
+  if (!mainPanel || mainPanel.style.display === 'none') return;
+
+  if (!options.keepRecording && !(main === 'audit' && sub === 'voice')) stopVoiceRec();
+
+  document.querySelectorAll('.sub-pill[data-main="' + main + '"]').forEach(function(p) {
+    p.classList.toggle('active', p.dataset.sub === sub);
+  });
+  MAIN_TAB_CONFIG[main].subs.forEach(function(id) {
+    var el = document.getElementById(subPanelId(id));
+    if (el) el.style.display = (id === sub) ? 'block' : 'none';
+  });
+
+  runSubTabInit(main, sub);
+  updateTopChromeLayout();
+}
+
+function switchMainTab(mainId, subId) {
+  autosaveAudit();
+
+  var activeSub = subId || currentSubTab[mainId] || (MAIN_TAB_CONFIG[mainId] && MAIN_TAB_CONFIG[mainId].defaultSub);
+  if (!(mainId === 'audit' && activeSub === 'voice')) stopVoiceRec();
+
+  var gear = document.getElementById('header-settings-btn');
+  if (gear) gear.classList.remove('active');
+
+  document.querySelectorAll('.tab').forEach(function(b) { b.classList.remove('active'); });
+  document.querySelectorAll('.tabpanel').forEach(function(p) { p.style.display = 'none'; });
+
+  currentMainTab = mainId;
+  var tabBtn = document.querySelector('[data-tab="' + mainId + '"]');
+  var tabPanel = document.getElementById('tab-' + mainId);
+  if (tabBtn) tabBtn.classList.add('active');
+  if (tabPanel) tabPanel.style.display = 'block';
+
+  if (subId) currentSubTab[mainId] = subId;
+  switchSubTab(mainId, currentSubTab[mainId], { keepRecording: mainId === 'audit' && currentSubTab[mainId] === 'voice' });
+}
+
+function initSubTabs() {
+  if (subTabsInitialized) return;
+  subTabsInitialized = true;
+  document.querySelectorAll('.sub-pill').forEach(function(pill) {
+    pill.addEventListener('click', function() {
+      autosaveAudit();
+      switchSubTab(pill.dataset.main, pill.dataset.sub);
+    });
+  });
+}
+
+function getActiveSubnavHeight() {
+  var panel = document.getElementById('tab-' + currentMainTab);
+  if (!panel || panel.style.display === 'none') return 0;
+  var subnav = document.getElementById('subnav-' + currentMainTab);
+  return subnav ? subnav.offsetHeight : 0;
+}
+
 function updateTopChromeLayout() {
   var header = document.querySelector('.header');
   var tabnav = document.querySelector('.tabnav');
@@ -540,15 +629,12 @@ function updateTopChromeLayout() {
   tabnav.style.top = headerH + 'px';
   var total = headerH + tabnav.offsetHeight;
   document.documentElement.style.setProperty('--top-chrome-height', total + 'px');
+  document.documentElement.style.setProperty('--main-subnav-height', getActiveSubnavHeight() + 'px');
   positionPhotoStickyControls();
 }
 
 function positionPhotoStickyControls() {
-  var el = document.getElementById('photo-controls-sticky');
-  var header = document.querySelector('.header');
-  var tabnav = document.querySelector('.tabnav');
-  if (!el || !header || !tabnav) return;
-  el.style.top = (header.offsetHeight + tabnav.offsetHeight) + 'px';
+  updateTopChromeLayout();
 }
 
 function openSettingsPanel() {
@@ -577,23 +663,11 @@ function initTabs() {
 
   document.querySelectorAll('.tab').forEach(function(btn) {
     btn.addEventListener('click', function() {
-      autosaveAudit();
-      if (btn.dataset.tab !== 'voice') stopVoiceRec();
-      var gear = document.getElementById('header-settings-btn');
-      if (gear) gear.classList.remove('active');
-      document.querySelectorAll('.tab').forEach(function(b) { b.classList.remove('active'); });
-      document.querySelectorAll('.tabpanel').forEach(function(p) { p.style.display = 'none'; });
-      btn.classList.add('active');
-      document.getElementById('tab-' + btn.dataset.tab).style.display = 'block';
-      if (btn.dataset.tab === 'export') renderWeeklyBatches();
-      if (btn.dataset.tab === 'interpret' && typeof initInterpretTab === 'function') initInterpretTab();
-      if (btn.dataset.tab === 'customers' && typeof initCustomersTab === 'function') initCustomersTab();
-      if (btn.dataset.tab === 'tc') renderTCInfo();
-      if (btn.dataset.tab === 'audits') renderAuditsList();
-      if (btn.dataset.tab === 'photos') positionPhotoStickyControls();
-      if (btn.dataset.tab === 'voice') renderPhotoNotesSummary();
+      switchMainTab(btn.dataset.tab);
     });
   });
+  initSubTabs();
+  switchSubTab('jobs', 'schedule');
 }
 
 // ── CUSTOMER FIELDS ───────────────────────────────────────────
@@ -2109,10 +2183,7 @@ function loadAudit(id) {
   renderVoiceDump();
   renderPhotoList();
   renderTCInfo();
-  document.querySelectorAll('.tab').forEach(function(b) { b.classList.remove('active'); });
-  document.querySelectorAll('.tabpanel').forEach(function(p) { p.style.display = 'none'; });
-  document.querySelector('[data-tab="voice"]').classList.add('active');
-  document.getElementById('tab-voice').style.display = 'block';
+  switchMainTab('audit', 'voice');
   toast('Loaded: ' + (S.name || 'audit'));
   if (typeof refreshInterpretFromLoadedAudit === 'function') refreshInterpretFromLoadedAudit();
 }

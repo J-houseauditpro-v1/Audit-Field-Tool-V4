@@ -206,13 +206,10 @@ function startAuditFromCustomer(row) {
   if (typeof renderHeader === 'function') renderHeader();
   if (typeof renderVoiceDump === 'function') renderVoiceDump();
   if (typeof renderPhotoList === 'function') renderPhotoList();
-  // Switch to Audit Data tab
-  document.querySelectorAll('.tab').forEach(function(b) { b.classList.remove('active'); });
-  document.querySelectorAll('.tabpanel').forEach(function(p) { p.style.display = 'none'; });
-  var voiceBtn = document.querySelector('[data-tab="voice"]');
-  var voicePanel = document.getElementById('tab-voice');
-  if (voiceBtn) voiceBtn.classList.add('active');
-  if (voicePanel) voicePanel.style.display = 'block';
+  // Switch to Audit Data sub-tab
+  if (typeof switchMainTab === 'function') {
+    switchMainTab('audit', 'voice');
+  }
   toast('Started audit for ' + (row.name || 'customer'));
 }
 
