@@ -708,8 +708,125 @@ function initCustomerFields() {
 }
 
 function renderHeader() {
-  var el = document.getElementById('header-sub');
-  el.textContent = S.name ? S.name + (S.address ? ' — ' + S.address : '') : 'No customer loaded';
+  var nameEl = document.getElementById('header-customer-name');
+  var line = S.name
+    ? S.name + (S.address ? ' — ' + S.address : '')
+    : 'No customer loaded';
+  if (nameEl) nameEl.textContent = line;
+  // Legacy element kept for any older references
+  var legacyEl = document.getElementById('header-sub');
+  if (legacyEl) legacyEl.textContent = line;
+  renderAuditPipeline();
+  if (typeof updateTopChromeLayout === 'function') {
+    requestAnimationFrame(updateTopChromeLayout);
+  }
+}
+
+var AUDIT_PIPELINE_STEPS = [
+  { id: 'scheduled', label: 'Scheduled' },
+  { id: 'in_progress', label: 'In-Progress' },
+  { id: 'complete', label: 'Complete' },
+  { id: 'interpreted', label: 'Interpreted' },
+  { id: 'submitted', label: 'Submitted' },
+  { id: 'archived', label: 'Archived' }
+];
+
+function getLoadedAuditRecord() {
+  if (!S.auditId || typeof getSaved !== 'function') return null;
+  return getSaved().find(function(a) { return a.id === S.auditId; }) || null;
+}
+
+function getAuditPipelineIndex() {
+  if (!S.name && !S.auditId && !S.scheduleJobId && S.customerNumber == null) return -1;
+
+  var idx = -1;
+  function reach(i) { idx = Math.max(idx, i); }
+
+  var saved = getLoadedAuditRecord();
+  var job = null;
+  if (typeof getScheduleJobById === 'function' && S.scheduleJobId) {
+    job = getScheduleJobById(S.scheduleJobId);
+  } else if (typeof getScheduleJobByAuditId === 'function' && S.auditId) {
+    job = getScheduleJobByAuditId(S.auditId);
+  }
+
+  if (job || S.scheduleJobId || S.customerNumber != null) reach(0);
+
+  if (S.auditId || (S.dump && S.dump.trim()) || (S.photos && S.photos.length)) reach(1);
+  if (job && typeof normalizeScheduleStatus === 'function') {
+    var jobStatus = normalizeScheduleStatus(job.status);
+    if (jobStatus !== 'ready') reach(1);
+  }
+
+  if (saved && (((saved.voiceDump || '').trim()) || (saved.photos || []).length)) reach(2);
+  if (job && typeof normalizeScheduleStatus === 'function' && normalizeScheduleStatus(job.status) === 'complete') reach(2);
+
+  if (saved && typeof auditHasInterpretation === 'function' && auditHasInterpretation(saved)) reach(3);
+  if (job && typeof normalizeScheduleStatus === 'function' && normalizeScheduleStatus(job.status) === 'interpreted') reach(3);
+  if (typeof interpretLastParsed !== 'undefined' && interpretLastParsed && interpretLastParsed.fields && interpretLastParsed.fields.length) reach(3);
+
+  if (saved && saved.submittedAt) reach(4);
+  if (saved && saved.archivedAt) reach(5);
+
+  return idx;
+}
+
+function renderAuditPipeline() {
+  var el = document.getElementById('header-pipeline');
+  if (!el) return;
+  var idx = getAuditPipelineIndex();
+  if (idx < 0) {
+    el.style.display = 'none';
+    el.innerHTML = '';
+    return;
+  }
+  el.style.display = 'flex';
+  el.innerHTML = AUDIT_PIPELINE_STEPS.map(function(step, i) {
+    var cls = 'header-pipeline-step';
+    if (i < idx) cls += ' is-reached';
+    if (i === idx) cls += ' is-current';
+    return '<div class="' + cls + '" title="' + escapeHtml(step.label) + '">' +
+      '<span class="header-pipeline-dot" aria-hidden="true"></span>' +
+      '<span class="header-pipeline-label">' + escapeHtml(step.label) + '</span>' +
+    '</div>';
+  }).join('');
+}
+
+function markAuditSubmitted(auditId) {
+  if (!auditId || typeof getSaved !== 'function') return false;
+  var saved = getSaved().slice();
+  var recIdx = saved.findIndex(function(a) { return a.id === auditId; });
+  if (recIdx < 0) return false;
+  saved[recIdx].submittedAt = new Date().toISOString();
+  setSaved(saved);
+  if (typeof maybeArchiveAuditRecord === 'function') maybeArchiveAuditRecord(saved[recIdx]);
+  renderHeader();
+  return true;
+}
+
+function maybeArchiveAuditRecord(auditRec) {
+  if (!auditRec || auditRec.archivedAt || !auditRec.submittedAt) return false;
+  var job = typeof getScheduleJobByAuditId === 'function' ? getScheduleJobByAuditId(auditRec.id) : null;
+  var jobComplete = job && typeof normalizeScheduleStatus === 'function' && normalizeScheduleStatus(job.status) === 'complete';
+  if (!jobComplete) return false;
+  auditRec.archivedAt = new Date().toISOString();
+  var saved = getSaved().slice();
+  var idx = saved.findIndex(function(a) { return a.id === auditRec.id; });
+  if (idx >= 0) {
+    saved[idx].archivedAt = auditRec.archivedAt;
+    setSaved(saved);
+  }
+  renderHeader();
+  return true;
+}
+
+function maybeArchiveLinkedAudit(jobId) {
+  if (!jobId || typeof getScheduleJobById !== 'function') return false;
+  var job = getScheduleJobById(jobId);
+  if (!job || !job.auditId) return false;
+  var saved = typeof getSaved === 'function' ? getSaved() : [];
+  var rec = saved.find(function(a) { return a.id === job.auditId; });
+  return rec ? maybeArchiveAuditRecord(rec) : false;
 }
 
 // ── CHEAT SHEET ───────────────────────────────────────────────
@@ -2012,6 +2129,8 @@ function persistAuditRecord() {
     if (existing.photosNotImported) rec.photosNotImported = true;
     if (!rec.scheduleJobId && existing.scheduleJobId) rec.scheduleJobId = existing.scheduleJobId;
     if (!rec.researchNotes && existing.researchNotes) rec.researchNotes = existing.researchNotes;
+    if (existing.submittedAt) rec.submittedAt = existing.submittedAt;
+    if (existing.archivedAt) rec.archivedAt = existing.archivedAt;
   }
   if (idx >= 0) saved[idx] = rec; else saved.unshift(rec);
   setSaved(saved);
@@ -2020,6 +2139,7 @@ function persistAuditRecord() {
     linkScheduleJobToAudit(rec.scheduleJobId, id);
   }
   renderAuditsList();
+  renderHeader();
 }
 
 function saveAudit() {

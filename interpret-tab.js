@@ -1432,6 +1432,7 @@ function persistInterpretationToAudit(options) {
     if (typeof syncScheduleStatusFromAudit === 'function') {
       syncScheduleStatusFromAudit(S.auditId, 'interpreted', { scheduleJobId: S.scheduleJobId });
     }
+    if (typeof renderHeader === 'function') renderHeader();
     if (!options.silent) toast(options.message || 'Interpretation saved to audit record.');
     return true;
   } catch(e) {
@@ -1672,6 +1673,9 @@ function runJotFormSubmit() {
       if (typeof S !== 'undefined' && S.auditId && typeof syncScheduleStatusFromAudit === 'function') {
         syncScheduleStatusFromAudit(S.auditId, 'complete', { force: true, scheduleJobId: S.scheduleJobId });
       }
+      if (typeof markAuditSubmitted === 'function' && S.auditId) {
+        markAuditSubmitted(S.auditId);
+      }
     } else {
       statusEl.style.color = '#e03333';
       statusEl.textContent = '✗ JotForm error: ' + (data.message || JSON.stringify(data));
@@ -1709,6 +1713,9 @@ function openInterpArchive(id) {
     S.year = rec.customer.yearBuilt || '';
     S.sqft = rec.customer.sqFt || '';
     S.coop = rec.customer.coop || '';
+    S.customerNumber = rec.customer.customerNumber != null ? rec.customer.customerNumber : null;
+    S.scheduleJobId = rec.scheduleJobId || null;
+    S.researchNotes = rec.researchNotes || '';
     S.dump = rec.voiceDump || '';
     S.photos = rec.photos || [];
     S.auditId = rec.id;
@@ -1750,4 +1757,5 @@ function openInterpArchive(id) {
     }
   }
   if (typeof toast === 'function') toast('Loaded interpretation: ' + (rec.customer.name || 'audit'));
+  if (typeof renderHeader === 'function') renderHeader();
 }

@@ -493,9 +493,13 @@ function renderResearchQueueRow(job) {
   var statusBadge = typeof renderScheduleStatusBadge === 'function'
     ? renderScheduleStatusBadge(job.status)
     : '';
+  var displayName = typeof formatScheduleJobDisplayName === 'function'
+    ? formatScheduleJobDisplayName(job)
+    : ('#' + job.customerNumber);
   return '<div class="research-queue-row week-audit-row' + (selected ? ' is-current' : '') + '" data-id="' + escapeHtmlResearch(job.id) + '">' +
     '<div class="week-audit-info">' +
-      '<div class="week-audit-name">#' + escapeHtmlResearch(String(job.customerNumber)) + ' — ' + escapeHtmlResearch(job.address || '—') + '</div>' +
+      '<div class="week-audit-name research-queue-name">' + escapeHtmlResearch(displayName) + '</div>' +
+      '<div class="research-queue-address">' + escapeHtmlResearch(job.address || '—') + '</div>' +
       '<div class="week-audit-meta">' +
         statusBadge +
         (hasResearch ? '<span class="research-has-results">✓ Researched</span>' : '<span class="research-no-results">Not researched</span>') +
@@ -516,9 +520,14 @@ function renderResearchDetail() {
   var badgeEl = document.getElementById('research-model-badge');
 
   if (titleEl) {
-    titleEl.textContent = job
-      ? ('#' + job.customerNumber + ' — ' + (job.address || 'No address'))
-      : 'Select a job from the queue below';
+    if (job) {
+      var displayLine = typeof formatScheduleJobDisplayLine === 'function'
+        ? formatScheduleJobDisplayLine(job)
+        : ('#' + job.customerNumber + ' — ' + (job.address || 'No address'));
+      titleEl.textContent = displayLine;
+    } else {
+      titleEl.textContent = 'Select a job from the queue below';
+    }
   }
   if (metaEl) {
     metaEl.textContent = job
