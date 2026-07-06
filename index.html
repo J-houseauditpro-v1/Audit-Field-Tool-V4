@@ -664,8 +664,8 @@
     <div class="card-sub" style="margin-top:14px;">Thinking Effort</div>
     <select class="field more-field-full" id="research-effort-select">
       <option value="">Off (no thinking, faster)</option>
-      <option value="low" selected>Low</option>
-      <option value="medium">Medium</option>
+      <option value="low">Low</option>
+      <option value="medium" selected>Medium (recommended)</option>
       <option value="high">High</option>
       <option value="max">Max</option>
     </select>
@@ -721,8 +721,8 @@
       <div class="card-sub" style="margin-top:8px;">Max Page Fetches per Run</div>
       <select class="field more-field-full" id="research-max-fetches-select">
         <option value="3">3</option>
-        <option value="5" selected>5</option>
-        <option value="8">8</option>
+        <option value="5">5</option>
+        <option value="8" selected>8</option>
       </select>
       <div class="card-sub" style="margin-top:8px;">Fetch Tool</div>
       <select class="field more-field-full" id="research-fetch-tool-select">
@@ -730,7 +730,7 @@
         <option value="web_fetch_20260209" selected>Dynamic filtering (recommended)</option>
       </select>
       <div class="card-sub" style="margin-top:6px;color:var(--sub);font-size:0.72rem;">
-        Web fetch uses your same Anthropic API key — no Zillow API needed. Satellite/Street View imagery is not available; only text clues from Maps search results.
+        Tip: Google search snippets often have Zillow sq ft even when Zillow pages block fetch. Research now searches Google first, then fetches direct Zillow URLs.
       </div>
 
       <div class="card-sub" style="margin-top:10px;">Source Types to Prioritize</div>
