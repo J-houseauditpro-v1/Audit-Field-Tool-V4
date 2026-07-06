@@ -1429,6 +1429,9 @@ function persistInterpretationToAudit(options) {
     interpretDirty = false;
     updateInterpSaveStatus(true);
     if (typeof renderAuditsList === 'function') renderAuditsList();
+    if (typeof syncScheduleStatusFromAudit === 'function') {
+      syncScheduleStatusFromAudit(S.auditId, 'interpreted', { scheduleJobId: S.scheduleJobId });
+    }
     if (!options.silent) toast(options.message || 'Interpretation saved to audit record.');
     return true;
   } catch(e) {
@@ -1666,6 +1669,9 @@ function runJotFormSubmit() {
       statusEl.style.color = '#4caf50';
       statusEl.textContent = '✓ Submitted to JotForm successfully!';
       toast('JotForm submission sent!');
+      if (typeof S !== 'undefined' && S.auditId && typeof syncScheduleStatusFromAudit === 'function') {
+        syncScheduleStatusFromAudit(S.auditId, 'complete', { force: true, scheduleJobId: S.scheduleJobId });
+      }
     } else {
       statusEl.style.color = '#e03333';
       statusEl.textContent = '✗ JotForm error: ' + (data.message || JSON.stringify(data));

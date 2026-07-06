@@ -8,6 +8,15 @@ var scheduleEditingId = null;
 
 var SCHEDULE_STORAGE_KEY = 'aft_schedule_jobs';
 
+var SCHEDULE_STATUSES = ['ready', 'in_progress', 'interpreted', 'complete'];
+var SCHEDULE_STATUS_LABELS = {
+  ready: 'Ready',
+  in_progress: 'In Progress',
+  interpreted: 'Interpreted',
+  complete: 'Complete'
+};
+var SCHEDULE_STATUS_ORDER = { ready: 0, in_progress: 1, interpreted: 2, complete: 3 };
+
 // ── SETTINGS HELPERS (Google Sheets import) ───────────────────
 function getSheetId()   { return localStorage.getItem('aft_gs_sheet_id')   || ''; }
 function setSheetId(v)  { localStorage.setItem('aft_gs_sheet_id', v); }
@@ -51,6 +60,12 @@ function getNextCustomerNumber(jobs) {
   return max + 1;
 }
 
+function normalizeScheduleStatus(status) {
+  var s = (status || 'ready').toLowerCase().replace(/\s+/g, '_');
+  if (s === 'inprogress') s = 'in_progress';
+  return SCHEDULE_STATUSES.indexOf(s) >= 0 ? s : 'ready';
+}
+
 function normalizeScheduleJob(raw) {
   return {
     id: raw.id || newScheduleJobId(),
@@ -62,8 +77,72 @@ function normalizeScheduleJob(raw) {
     year: raw.year || '',
     sqft: raw.sqft || '',
     source: raw.source || 'manual',
+    status: normalizeScheduleStatus(raw.status),
+    auditId: raw.auditId || null,
+    researchOutput: raw.researchOutput || null,
+    researchForwardedAt: raw.researchForwardedAt || null,
     createdAt: raw.createdAt || new Date().toISOString()
   };
+}
+
+function getScheduleJobById(id) {
+  return getScheduleJobs().find(function(j) { return j.id === id; }) || null;
+}
+
+function getScheduleJobByAuditId(auditId) {
+  if (!auditId) return null;
+  return getScheduleJobs().find(function(j) { return j.auditId === auditId; }) || null;
+}
+
+function setScheduleJobStatus(jobId, status, options) {
+  options = options || {};
+  var jobs = getScheduleJobs().slice();
+  var idx = jobs.findIndex(function(j) { return j.id === jobId; });
+  if (idx < 0) return false;
+  var next = normalizeScheduleStatus(status);
+  var current = normalizeScheduleStatus(jobs[idx].status);
+  if (!options.force && SCHEDULE_STATUS_ORDER[next] < SCHEDULE_STATUS_ORDER[current]) return false;
+  jobs[idx].status = next;
+  saveScheduleJobs(jobs);
+  refreshScheduleListIfVisible();
+  return true;
+}
+
+function syncScheduleStatusFromAudit(auditId, status, options) {
+  if (!auditId) return false;
+  var job = getScheduleJobByAuditId(auditId);
+  if (!job && options && options.scheduleJobId) job = getScheduleJobById(options.scheduleJobId);
+  if (!job) return false;
+  return setScheduleJobStatus(job.id, status, options || {});
+}
+
+function linkScheduleJobToAudit(jobId, auditId) {
+  if (!jobId || !auditId) return false;
+  var jobs = getScheduleJobs().slice();
+  var idx = jobs.findIndex(function(j) { return j.id === jobId; });
+  if (idx < 0) return false;
+  jobs[idx].auditId = auditId;
+  if (normalizeScheduleStatus(jobs[idx].status) === 'ready') jobs[idx].status = 'in_progress';
+  saveScheduleJobs(jobs);
+  refreshScheduleListIfVisible();
+  return true;
+}
+
+function markScheduleJobComplete(jobId) {
+  return setScheduleJobStatus(jobId, 'complete', { force: true });
+}
+
+function refreshScheduleListIfVisible() {
+  var panel = document.getElementById('tab-schedule');
+  if (panel && panel.style.display !== 'none' && typeof renderCustomersList === 'function') {
+    renderCustomersList(getScheduleJobs(), getScheduleSearchFilter());
+  }
+}
+
+function renderScheduleStatusBadge(status) {
+  var s = normalizeScheduleStatus(status);
+  var label = SCHEDULE_STATUS_LABELS[s] || 'Ready';
+  return '<span class="schedule-status-badge status-' + s + '">' + escapeHtmlC(label) + '</span>';
 }
 
 function loadScheduleJobs() {
@@ -217,6 +296,13 @@ function updateScheduleJob(id, updates) {
   }
   if (updates.name !== undefined) job.name = updates.name.trim();
   if (updates.address !== undefined) job.address = updates.address.trim();
+  if (updates.status !== undefined) job.status = normalizeScheduleStatus(updates.status);
+  if (updates.auditId !== undefined) job.auditId = updates.auditId;
+  if (updates.researchOutput !== undefined) job.researchOutput = updates.researchOutput;
+  if (updates.researchForwardedAt !== undefined) job.researchForwardedAt = updates.researchForwardedAt;
+  if (updates.year !== undefined) job.year = updates.year;
+  if (updates.sqft !== undefined) job.sqft = updates.sqft;
+  if (updates.coop !== undefined) job.coop = updates.coop;
   jobs[idx] = job;
   saveScheduleJobs(jobs);
   return true;
@@ -407,16 +493,31 @@ function renderCustomersList(rows, filter) {
       renderCustomersList(jobs, filter);
     });
   });
+  listEl.querySelectorAll('.schedule-mark-complete-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var id = btn.dataset.id;
+      if (confirm('Mark this job as Complete?')) {
+        markScheduleJobComplete(id);
+        renderCustomersList(getScheduleJobs(), filter);
+        toast('Job marked Complete');
+      }
+    });
+  });
 }
 
 function renderScheduleViewCard(job) {
   var sourceTag = job.source === 'sheets'
     ? '<span class="schedule-source-tag">Sheets</span>'
     : '<span class="schedule-source-tag manual">Manual</span>';
+  var status = normalizeScheduleStatus(job.status);
+  var completeBtn = status !== 'complete'
+    ? '<button type="button" class="btn-sm schedule-mark-complete-btn" data-id="' + escapeHtmlC(job.id) + '">Mark Complete</button>'
+    : '';
   return '<div class="customer-card schedule-job-card" data-id="' + escapeHtmlC(job.id) + '">' +
     '<div class="schedule-card-top">' +
       '<span class="schedule-customer-num">#' + escapeHtmlC(String(job.customerNumber)) + '</span>' +
       '<div class="customer-card-name">' + escapeHtmlC(job.name || '—') + '</div>' +
+      renderScheduleStatusBadge(status) +
       sourceTag +
     '</div>' +
     '<div class="customer-card-meta schedule-card-address">' +
@@ -425,6 +526,7 @@ function renderScheduleViewCard(job) {
     '<div class="schedule-card-actions">' +
       '<button type="button" class="btn-sm schedule-edit-btn" data-id="' + escapeHtmlC(job.id) + '">Edit</button>' +
       '<button type="button" class="btn-sm btn-danger-sm schedule-delete-btn" data-id="' + escapeHtmlC(job.id) + '">Delete</button>' +
+      completeBtn +
       '<button type="button" class="btn-gold btn-sm customer-start-btn" data-id="' + escapeHtmlC(job.id) + '">Start Audit →</button>' +
     '</div>' +
   '</div>';
@@ -475,16 +577,26 @@ function startAuditFromCustomer(row) {
   S.year    = row.year    || '';
   S.sqft    = row.sqft    || '';
   S.customerNumber = row.customerNumber != null ? row.customerNumber : null;
+  S.scheduleJobId = row.id || null;
+  S.researchNotes = '';
+  if (row.researchOutput && row.researchForwardedAt) {
+    S.researchNotes = typeof formatResearchNotesText === 'function'
+      ? formatResearchNotesText(row.researchOutput)
+      : (row.researchOutput.summary || '');
+  }
   S.auditId = null;
   S.dump    = '';
   S.photos  = [];
   S.tcSignature = null;
   if (typeof clearTCSignature === 'function') clearTCSignature();
+  setScheduleJobStatus(row.id, 'in_progress', { force: true });
   if (typeof save       === 'function') save();
   if (typeof fillFields === 'function') fillFields();
   if (typeof renderHeader === 'function') renderHeader();
   if (typeof renderVoiceDump === 'function') renderVoiceDump();
   if (typeof renderPhotoList === 'function') renderPhotoList();
+  if (typeof renderResearchNotesSummary === 'function') renderResearchNotesSummary();
+  if (typeof persistAuditRecord === 'function') persistAuditRecord();
   if (typeof switchMainTab === 'function') {
     switchMainTab('audit', 'voice');
   }
