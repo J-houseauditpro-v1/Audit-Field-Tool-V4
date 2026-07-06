@@ -694,24 +694,44 @@
       <div class="card-sub" style="margin-top:10px;">Search Tool</div>
       <select class="field more-field-full" id="research-search-tool-select">
         <option value="web_search_20250305">Basic web search</option>
-        <option value="web_search_20260209">Dynamic filtering (newer, more accurate)</option>
+        <option value="web_search_20260209" selected>Dynamic filtering (newer, more accurate)</option>
       </select>
 
       <div class="card-sub" style="margin-top:10px;">Search Strategy</div>
       <select class="field more-field-full" id="research-search-strategy-select">
         <option value="quick">Quick — 1–2 targeted searches</option>
-        <option value="balanced" selected>Balanced — progressive searches as needed</option>
-        <option value="thorough">Thorough — cross-reference multiple sources</option>
+        <option value="balanced">Balanced — progressive searches as needed</option>
+        <option value="thorough" selected>Thorough — cross-reference multiple sources</option>
       </select>
 
       <div class="card-sub" style="margin-top:10px;">Max Searches per Run</div>
       <select class="field more-field-full" id="research-max-searches-select">
         <option value="2">2</option>
         <option value="3">3</option>
-        <option value="5" selected>5</option>
-        <option value="8">8</option>
+        <option value="5">5</option>
+        <option value="8" selected>8</option>
         <option value="10">10</option>
       </select>
+
+      <div class="card-sub" style="margin-top:14px;font-weight:600;">Web Fetch <span style="color:var(--sub);font-size:0.75rem;">(opens Zillow/assessor pages found in search)</span></div>
+      <label class="research-source-check" style="margin-top:6px;">
+        <input type="checkbox" id="research-enable-web-fetch" checked>
+        Enable web fetch — required for full Zillow/Redfin page data
+      </label>
+      <div class="card-sub" style="margin-top:8px;">Max Page Fetches per Run</div>
+      <select class="field more-field-full" id="research-max-fetches-select">
+        <option value="3">3</option>
+        <option value="5" selected>5</option>
+        <option value="8">8</option>
+      </select>
+      <div class="card-sub" style="margin-top:8px;">Fetch Tool</div>
+      <select class="field more-field-full" id="research-fetch-tool-select">
+        <option value="web_fetch_20250910">Basic fetch</option>
+        <option value="web_fetch_20260209" selected>Dynamic filtering (recommended)</option>
+      </select>
+      <div class="card-sub" style="margin-top:6px;color:var(--sub);font-size:0.72rem;">
+        Web fetch uses your same Anthropic API key — no Zillow API needed. Satellite/Street View imagery is not available; only text clues from Maps search results.
+      </div>
 
       <div class="card-sub" style="margin-top:10px;">Source Types to Prioritize</div>
       <div class="research-source-checks">
@@ -722,8 +742,8 @@
         <label class="research-source-check"><input type="checkbox" id="research-src-general" checked> General web fallback</label>
       </div>
 
-      <div class="card-sub" style="margin-top:10px;">Preferred Domains <span style="color:var(--sub);font-size:0.75rem;">(one per line, optional)</span></div>
-      <textarea class="voice-area more-field-full" id="research-domains-textarea" style="height:80px;font-size:0.72rem;" placeholder="zillow.com&#10;redfin.com&#10;assessor.example.gov"></textarea>
+      <div class="card-sub" style="margin-top:10px;">Preferred Domains <span style="color:var(--sub);font-size:0.75rem;">(one per line — used for search priority and web fetch allowlist)</span></div>
+      <textarea class="voice-area more-field-full" id="research-domains-textarea" style="height:80px;font-size:0.72rem;" placeholder="zillow.com&#10;redfin.com&#10;realtor.com&#10;arcountydata.com&#10;google.com"></textarea>
 
       <div class="card-sub" style="margin-top:10px;">Research Instructions <span style="color:var(--sub);font-size:0.75rem;">(custom rules for every research run)</span></div>
       <textarea class="voice-area more-field-full" id="research-instructions-textarea" style="height:140px;font-size:0.72rem;" placeholder="Loading..."></textarea>
