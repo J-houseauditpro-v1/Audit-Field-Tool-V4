@@ -440,31 +440,40 @@
   </section>
 
   <section class="card">
-    <div class="card-title">💾 Restore from Backup</div>
-    <div class="card-sub">Restore audits, photos, signatures, and interpreted output from a Full Backup or Weekly Backup zip file.</div>
-    <input type="file" id="backup-restore-input" accept=".zip,application/zip" style="display:none;">
-    <button class="btn-gold btn-full" id="backup-restore-btn" style="margin-top:8px;">📂 Select Backup Zip</button>
-    <div id="backup-restore-selected" class="card-sub" style="margin-top:8px;display:none;"></div>
-  </section>
-
-  <section class="card">
-    <div class="card-title">⬆️ Import V2/V3 Audits</div>
-    <div class="card-sub">Import a bulk JSON export from Audit Field Tool V2 or V3. Select the <code>aft_saved</code> JSON file downloaded from the old app. Photos are noted as not imported (they live in the old app's storage).</div>
-    <input type="file" id="v2v3-import-input" accept=".json" style="display:none;">
-    <button class="btn-gold btn-full" id="v2v3-import-btn" style="margin-top:8px;">📂 Select V2/V3 Export JSON</button>
-  </section>
-
-  <section class="card">
-    <div class="card-title">📥 Import Legacy Audit</div>
-    <div class="card-sub">Import a single pre-bundle audit JSON. It will be added to Saved Audits for reference.</div>
-    <div class="field-row">
-      <label class="btn-outline photo-label" style="flex:1;text-align:center;">
-        📄 JSON (required)
-        <input type="file" id="legacy-json-input" accept=".json" style="display:none;">
-      </label>
+    <button type="button" class="cheat-toggle" id="archive-restore-toggle">💾 Restore from Backup <span id="archive-restore-arrow">▼</span></button>
+    <div class="cheat-body" id="archive-restore-body">
+      <div class="card-sub" style="margin-top:6px;">Restore audits, photos, signatures, and interpreted output from a Full Backup or Weekly Backup zip file.</div>
+      <input type="file" id="backup-restore-input" accept=".zip,application/zip" style="display:none;">
+      <button type="button" class="btn-gold btn-full" id="backup-restore-btn" style="margin-top:8px;">📂 Select Backup Zip</button>
+      <div id="backup-restore-selected" class="card-sub" style="margin-top:8px;display:none;"></div>
     </div>
-    <div id="legacy-import-selected" class="card-sub" style="margin-top:8px;">No JSON selected</div>
-    <button class="btn-gold btn-full" id="legacy-import-btn" style="margin-top:8px;">Import Legacy Audit</button>
+  </section>
+
+  <section class="card">
+    <button type="button" class="cheat-toggle" id="archive-legacy-import-toggle">📥 Legacy import <span id="archive-legacy-import-arrow">▼</span></button>
+    <div class="cheat-body" id="archive-legacy-import-body">
+      <div class="card-sub" style="margin-top:6px;">Import audits from older versions of Audit Field Tool.</div>
+
+      <div class="archive-legacy-import-block">
+        <div class="archive-legacy-import-title">⬆️ Import V2/V3 Audits</div>
+        <div class="card-sub">Bulk JSON export from V2 or V3. Select the <code>aft_saved</code> JSON file. Photos are not imported (they live in the old app).</div>
+        <input type="file" id="v2v3-import-input" accept=".json" style="display:none;">
+        <button type="button" class="btn-gold btn-full" id="v2v3-import-btn" style="margin-top:8px;">📂 Select V2/V3 Export JSON</button>
+      </div>
+
+      <div class="archive-legacy-import-block">
+        <div class="archive-legacy-import-title">📥 Import Legacy Audit</div>
+        <div class="card-sub">Single pre-bundle audit JSON — added to Saved Audits for reference.</div>
+        <div class="field-row">
+          <label class="btn-outline photo-label" style="flex:1;text-align:center;">
+            📄 JSON (required)
+            <input type="file" id="legacy-json-input" accept=".json" style="display:none;">
+          </label>
+        </div>
+        <div id="legacy-import-selected" class="card-sub" style="margin-top:8px;">No JSON selected</div>
+        <button type="button" class="btn-gold btn-full" id="legacy-import-btn" style="margin-top:8px;">Import Legacy Audit</button>
+      </div>
+    </div>
   </section>
 
 </div><!-- /tab-archive -->

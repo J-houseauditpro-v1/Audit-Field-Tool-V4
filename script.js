@@ -464,6 +464,22 @@ function toggleArchiveFullBackupSection() {
   arrow.textContent = open ? '▲' : '▼';
 }
 
+function toggleArchiveRestoreSection() {
+  var body = document.getElementById('archive-restore-body');
+  var arrow = document.getElementById('archive-restore-arrow');
+  if (!body || !arrow) return;
+  var open = body.classList.toggle('open');
+  arrow.textContent = open ? '▲' : '▼';
+}
+
+function toggleArchiveLegacyImportSection() {
+  var body = document.getElementById('archive-legacy-import-body');
+  var arrow = document.getElementById('archive-legacy-import-arrow');
+  if (!body || !arrow) return;
+  var open = body.classList.toggle('open');
+  arrow.textContent = open ? '▲' : '▼';
+}
+
 function toggleScheduleAddSection() {
   var body = document.getElementById('schedule-add-body');
   var arrow = document.getElementById('schedule-add-arrow');
@@ -507,6 +523,16 @@ function bootstrapGlobalClickHandlers() {
     if (e.target.closest('#archive-full-backup-toggle')) {
       e.preventDefault();
       toggleArchiveFullBackupSection();
+      return;
+    }
+    if (e.target.closest('#archive-restore-toggle')) {
+      e.preventDefault();
+      toggleArchiveRestoreSection();
+      return;
+    }
+    if (e.target.closest('#archive-legacy-import-toggle')) {
+      e.preventDefault();
+      toggleArchiveLegacyImportSection();
       return;
     }
     if (e.target.closest('#schedule-add-toggle')) {
@@ -2987,8 +3013,9 @@ function renderAuditsListRow(a) {
       '<div class="archive-audit-name">' + escapeHtml(name) + '</div>' +
       '<div class="archive-audit-quick-btns">' +
         '<button type="button" class="archive-icon-btn archive-view-btn" data-id="' + a.id + '" title="View details" aria-label="View details">🔍</button>' +
+        '<button type="button" class="archive-icon-btn archive-export-zip-btn" data-id="' + a.id + '" title="Full export zip" aria-label="Full export zip">📁</button>' +
         '<select class="field archive-action-select archive-icon-select" data-id="' + a.id + '" aria-label="Audit actions">' +
-          '<option value="">⚙️</option>' +
+          '<option value="">▼</option>' +
           '<option value="load">Load audit</option>' +
           '<option value="json">Export JSON</option>' +
           '<option value="pdf">Photo PDF</option>' +
@@ -2997,7 +3024,6 @@ function renderAuditsListRow(a) {
           '<option value="text">Text summary</option>' +
           '<option value="delete">Delete audit</option>' +
         '</select>' +
-        '<button type="button" class="archive-icon-btn archive-export-zip-btn" data-id="' + a.id + '" title="Full export zip" aria-label="Full export zip">📁</button>' +
       '</div>' +
     '</div>' +
     '<div class="archive-audit-indicators">' + metaLine + '</div>' +
