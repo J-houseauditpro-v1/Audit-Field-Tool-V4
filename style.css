@@ -285,6 +285,13 @@ input[type="date"] { color-scheme: dark; }
 }
 .date-field:not(.is-empty) .date-field-ph,
 .date-field:focus-within .date-field-ph { display: none; }
+.date-field.is-empty:not(:focus-within) input[type="date"] {
+  color: transparent;
+}
+.date-field.is-empty:not(:focus-within) input[type="date"]::-webkit-datetime-edit,
+.date-field.is-empty:not(:focus-within) input[type="date"]::-webkit-datetime-edit-fields-wrapper {
+  opacity: 0;
+}
 .customer-date-row > .field {
   position: relative;
   z-index: 1;
