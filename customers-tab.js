@@ -677,6 +677,7 @@ function startAuditFromCustomer(row) {
   S.photos  = [];
   S.tcSignature = null;
   if (typeof clearTCSignature === 'function') clearTCSignature();
+  if (typeof clearInterpretSession === 'function') clearInterpretSession();
   setScheduleJobStatus(row.id, 'in_progress', { force: true });
   if (typeof updateScheduleJob === 'function') {
     updateScheduleJob(row.id, { researchForwardedAt: new Date().toISOString() });
