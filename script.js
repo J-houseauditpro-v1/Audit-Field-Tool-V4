@@ -498,6 +498,7 @@ document.addEventListener('DOMContentLoaded', function() {
   // Weekly batches render on tab open
   initTabs();
   initCustomerFields();
+  initAuditDataTabActions();
   initCheatsheet();
   initVoice();
   initPhotoInput();
@@ -520,12 +521,6 @@ document.addEventListener('DOMContentLoaded', function() {
   initV2V3Import();
   initExportTab();
   initAuditorSettings();
-  var btnResetAudit = document.getElementById('btn-reset-audit');
-  if (btnResetAudit) {
-    btnResetAudit.addEventListener('click', function() {
-      if (confirm('Reset current audit? Export first — this cannot be undone.')) clearCurrent();
-    });
-  }
   initTCTab();
   renderTCInfo();
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
@@ -728,6 +723,44 @@ function initCustomerFields() {
   });
 }
 
+function resetCurrentAudit() {
+  if (!confirm('Reset current audit? Export first — this cannot be undone.')) return;
+  clearCurrent();
+}
+
+function clearGeneralNotes() {
+  if (!S.dump) return;
+  if (!confirm('Clear all general notes? This cannot be undone.')) return;
+  stopVoiceRec();
+  S.dump = '';
+  var dumpEl = document.getElementById('voice-dump');
+  if (dumpEl) dumpEl.value = '';
+  save();
+}
+
+function initAuditDataTabActions() {
+  var panel = document.getElementById('tab-voice');
+  if (!panel || panel.dataset.auditActionsWired === '1') return;
+  panel.dataset.auditActionsWired = '1';
+  panel.addEventListener('click', function(e) {
+    if (e.target.closest('#btn-reset-audit')) {
+      e.preventDefault();
+      resetCurrentAudit();
+      return;
+    }
+    if (e.target.closest('#voice-clear-btn')) {
+      e.preventDefault();
+      clearGeneralNotes();
+      return;
+    }
+    var recordBtn = e.target.closest('#record-voice-btn');
+    if (recordBtn && !recordBtn.disabled) {
+      e.preventDefault();
+      voiceRecActive ? stopVoiceRec() : startVoiceRec();
+    }
+  });
+}
+
 function renderHeader() {
   var nameEl = document.getElementById('header-customer-name');
   var line = S.name
@@ -851,7 +884,9 @@ function maybeArchiveLinkedAudit(jobId) {
 
 // ── CHEAT SHEET ───────────────────────────────────────────────
 function initCheatsheet() {
-  document.getElementById('cheat-toggle').addEventListener('click', function() {
+  var toggle = document.getElementById('cheat-toggle');
+  if (!toggle) return;
+  toggle.addEventListener('click', function() {
     var body = document.getElementById('cheat-body');
     var arrow = document.getElementById('cheat-arrow');
     var open = body.classList.toggle('open');
@@ -883,22 +918,68 @@ function stopVoiceRec() {
   }
 }
 
+function startVoiceRec() {
+  var dumpEl = document.getElementById('voice-dump');
+  var recordBtn = document.getElementById('record-voice-btn');
+  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!dumpEl || !recordBtn || !SR) return;
+
+  dumpEl.blur();
+  if (document.activeElement) document.activeElement.blur();
+
+  voiceRec = new SR();
+  voiceRec.continuous = true;
+  voiceRec.interimResults = true;
+  voiceRec.lang = 'en-US';
+
+  voiceRec.onstart = function() {
+    voiceRecActive = true;
+    recordBtn.classList.add('recording');
+    recordBtn.textContent = '🔴 Recording — tap to stop';
+  };
+
+  voiceRec.onresult = function(e) {
+    var final = '', interim = '';
+    for (var i = e.resultIndex; i < e.results.length; i++) {
+      if (e.results[i].isFinal) final += e.results[i][0].transcript + ' ';
+      else interim += e.results[i][0].transcript;
+    }
+    if (final) {
+      S.dump += final;
+      save();
+      autosaveAudit();
+    }
+    dumpEl.value = S.dump + interim;
+  };
+
+  voiceRec.onerror = function(e) {
+    if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
+      toast('Microphone permission denied — check Settings for Safari/Chrome');
+    } else if (e.error !== 'aborted' && e.error !== 'no-speech') {
+      toast('Voice error: ' + e.error);
+    }
+    stopVoiceRec();
+  };
+
+  voiceRec.onend = function() {
+    if (voiceRecActive) {
+      try { voiceRec.start(); } catch(err) { stopVoiceRec(); }
+    }
+  };
+
+  try {
+    voiceRec.start();
+  } catch(err) {
+    toast('Could not start voice — ' + err.message);
+    stopVoiceRec();
+  }
+}
+
 function initVoice() {
   var dumpEl = document.getElementById('voice-dump');
   if (!dumpEl) return;
 
   dumpEl.addEventListener('input', function() { S.dump = dumpEl.value; save(); });
-
-  var clearBtn = document.getElementById('voice-clear-btn');
-  if (clearBtn) {
-    clearBtn.addEventListener('click', function() {
-      if (!S.dump) return;
-      if (confirm('Clear all general notes? This cannot be undone.')) {
-        stopVoiceRec();
-        S.dump = ''; dumpEl.value = ''; save();
-      }
-    });
-  }
 
   var recordBtn = document.getElementById('record-voice-btn');
   var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -913,58 +994,6 @@ function initVoice() {
   recordBtn.addEventListener('click', function() {
     voiceRecActive ? stopVoiceRec() : startVoiceRec();
   });
-
-  function startVoiceRec() {
-    dumpEl.blur();
-    if (document.activeElement) document.activeElement.blur();
-
-    voiceRec = new SR();
-    voiceRec.continuous = true;
-    voiceRec.interimResults = true;
-    voiceRec.lang = 'en-US';
-
-    voiceRec.onstart = function() {
-      voiceRecActive = true;
-      recordBtn.classList.add('recording');
-      recordBtn.textContent = '🔴 Recording — tap to stop';
-    };
-
-    voiceRec.onresult = function(e) {
-      var final = '', interim = '';
-      for (var i = e.resultIndex; i < e.results.length; i++) {
-        if (e.results[i].isFinal) final += e.results[i][0].transcript + ' ';
-        else interim += e.results[i][0].transcript;
-      }
-      if (final) {
-        S.dump += final;
-        save();
-        autosaveAudit();
-      }
-      dumpEl.value = S.dump + interim;
-    };
-
-    voiceRec.onerror = function(e) {
-      if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
-        toast('Microphone permission denied — check Settings for Safari/Chrome');
-      } else if (e.error !== 'aborted' && e.error !== 'no-speech') {
-        toast('Voice error: ' + e.error);
-      }
-      stopVoiceRec();
-    };
-
-    voiceRec.onend = function() {
-      if (voiceRecActive) {
-        try { voiceRec.start(); } catch(err) { stopVoiceRec(); }
-      }
-    };
-
-    try {
-      voiceRec.start();
-    } catch(err) {
-      toast('Could not start voice — ' + err.message);
-      stopVoiceRec();
-    }
-  }
 }
 
 function renderVoiceDump() {
@@ -2086,7 +2115,8 @@ function closeModal() {
 
 // ── AUDITS TAB ────────────────────────────────────────────────
 function initAuditsTab() {
-  document.getElementById('save-btn').addEventListener('click', saveAudit);
+  var saveBtn = document.getElementById('save-btn');
+  if (saveBtn) saveBtn.addEventListener('click', saveAudit);
   var newBtn = document.getElementById('new-btn');
   if (newBtn) newBtn.addEventListener('click', function() {
     if (!S.name && !S.dump && !S.photos.length) { toast('Nothing to save — add info first'); return; }

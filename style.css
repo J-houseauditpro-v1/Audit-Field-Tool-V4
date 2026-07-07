@@ -245,6 +245,11 @@ body {
 /* FIELDS */
 .field-row { display: flex; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
 .field-row:last-child { margin-bottom: 0; }
+.field-row > .field,
+.field-row > .date-field {
+  flex: 1 1 0;
+  min-width: 0;
+}
 .field {
   flex: 1;
   min-width: 120px;
@@ -258,11 +263,16 @@ body {
 .field:focus { outline: none; border-color: var(--gold); }
 input[type="date"] { color-scheme: dark; }
 .date-field {
-  flex: 1;
-  min-width: 120px;
   position: relative;
+  overflow: hidden;
+  isolation: isolate;
 }
-.date-field .field { width: 100%; }
+.date-field > .field {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  flex: none;
+}
 .date-field-ph {
   position: absolute;
   left: 12px;
@@ -271,9 +281,22 @@ input[type="date"] { color-scheme: dark; }
   color: #888;
   pointer-events: none;
   font-size: 0.9rem;
+  z-index: 0;
 }
 .date-field:not(.is-empty) .date-field-ph,
 .date-field:focus-within .date-field-ph { display: none; }
+.customer-date-row > .field {
+  position: relative;
+  z-index: 1;
+}
+@media (max-width: 520px) {
+  .customer-date-row .date-field {
+    flex: 1 1 100%;
+  }
+  .customer-date-row > .field {
+    flex: 1 1 calc(50% - 4px);
+  }
+}
 select.field { cursor: pointer; }
 
 /* CHEAT SHEET */
@@ -305,18 +328,28 @@ select.field { cursor: pointer; }
 
 /* GENERAL NOTES */
 .general-notes-toolbar {
-  display: grid;
-  grid-template-columns: 1fr auto 1fr;
-  align-items: center;
-  gap: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
   margin-bottom: 10px;
 }
 .general-notes-toolbar .card-title {
   margin-bottom: 0;
-  justify-self: start;
+}
+.notes-toolbar-actions {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+}
+.notes-toolbar-actions .btn-record-voice,
+.notes-toolbar-actions #voice-clear-btn {
+  flex: 1 1 0;
+  min-height: 44px;
+  touch-action: manipulation;
+  position: relative;
+  z-index: 2;
 }
 .btn-record-voice {
-  justify-self: center;
   background: transparent;
   color: var(--gold);
   border: 1px solid var(--gold);
@@ -336,8 +369,11 @@ select.field { cursor: pointer; }
   opacity: 0.45;
   cursor: not-allowed;
 }
-.general-notes-toolbar #voice-clear-btn {
-  justify-self: end;
+#btn-reset-audit {
+  min-height: 44px;
+  touch-action: manipulation;
+  position: relative;
+  z-index: 2;
 }
 .voice-area {
   width: 100%;

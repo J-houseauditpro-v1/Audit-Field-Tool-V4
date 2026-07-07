@@ -167,13 +167,13 @@
   <section class="card">
     <div class="row-between">
       <div class="card-title" style="margin-bottom:0;">Customer Info</div>
-      <button class="btn-sm btn-danger-sm" id="btn-reset-audit">Reset</button>
+      <button type="button" class="btn-sm btn-danger-sm" id="btn-reset-audit">Reset</button>
     </div>
     <div class="field-row">
       <input class="field" id="f-name" type="text" placeholder="Customer name" autocomplete="off">
       <input class="field" id="f-address" type="text" placeholder="Address" autocomplete="off">
     </div>
-    <div class="field-row">
+    <div class="field-row customer-date-row">
       <div class="date-field is-empty">
         <input class="field" id="f-date" type="date">
         <span class="date-field-ph">Select Date</span>
@@ -238,8 +238,10 @@
   <section class="card">
     <div class="general-notes-toolbar">
       <div class="card-title">General Notes</div>
-      <button type="button" class="btn-record-voice" id="record-voice-btn">🎙 Record Voice 🎙</button>
-      <button type="button" class="btn-sm btn-danger-sm" id="voice-clear-btn">Clear</button>
+      <div class="notes-toolbar-actions">
+        <button type="button" class="btn-record-voice" id="record-voice-btn">🎙 Record Voice 🎙</button>
+        <button type="button" class="btn-sm btn-danger-sm" id="voice-clear-btn">Clear</button>
+      </div>
     </div>
     <textarea class="voice-area" id="voice-dump" placeholder="Type notes here, or tap Record Voice to dictate while reading the cheat sheet."></textarea>
   </section>
