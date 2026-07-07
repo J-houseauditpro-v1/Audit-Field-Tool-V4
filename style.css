@@ -1996,21 +1996,35 @@ body.modal-open {
   margin-bottom: 0;
 }
 #customers-list .day-group {
-  margin-bottom: 6px;
+  margin-bottom: 4px;
+}
+#customers-list .week-audit-row,
+#customers-list .schedule-queue-row {
+  padding: 5px 12px;
 }
 .schedule-queue-row {
-  align-items: flex-start;
+  align-items: center;
+  padding: 5px 12px;
+  gap: 8px;
+}
+.schedule-queue-info {
+  flex: 1;
+  min-width: 0;
 }
 .schedule-queue-name {
   font-weight: 600;
   color: var(--text);
+  font-size: 0.88rem;
+  line-height: 1.2;
 }
 .schedule-queue-address {
-  font-size: 0.78rem;
-  color: var(--text);
-  opacity: 0.92;
-  margin-top: 2px;
-  line-height: 1.35;
+  font-size: 0.7rem;
+  color: var(--sub);
+  margin-top: 1px;
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .schedule-queue-meta {
   display: flex;
@@ -2266,10 +2280,14 @@ body.modal-open {
 
 /* ── ARCHIVE ─────────────────────────────────── */
 #audits-list .archive-audit-row {
-  flex-direction: column;
-  align-items: stretch;
-  padding: 8px 12px;
-  gap: 4px;
+  flex-direction: row;
+  align-items: center;
+  padding: 4px 10px;
+  gap: 8px;
+}
+.archive-audit-left {
+  flex: 1;
+  min-width: 0;
 }
 .archive-audit-top {
   display: flex;
@@ -2326,14 +2344,14 @@ body.modal-open {
   font-size: 0.85rem;
 }
 #audits-list .archive-audit-name {
-  flex: 1;
+  flex: none;
   min-width: 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  font-size: 0.88rem;
+  font-size: 0.84rem;
   font-weight: 600;
-  line-height: 1.25;
+  line-height: 1.15;
 }
 #audits-list .archive-audit-row.is-current .archive-audit-name {
   color: var(--gold);
@@ -2341,18 +2359,19 @@ body.modal-open {
 .archive-audit-indicators {
   width: 100%;
   min-width: 0;
-  line-height: 1.2;
+  margin-top: 1px;
+  line-height: 1;
 }
 .archive-audit-indicators .export-row-meta {
   display: inline-flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 5px;
 }
 #audits-list .export-meta-date {
   color: var(--sub);
   flex-shrink: 0;
-  font-size: 0.88rem;
+  font-size: 0.76rem;
   font-weight: 600;
 }
 #audits-list .export-meta-pill {
@@ -2360,16 +2379,16 @@ body.modal-open {
   align-items: center;
   gap: 1px;
   flex-shrink: 0;
-  font-size: 0.62rem;
+  font-size: 0.68rem;
   line-height: 1;
 }
 #audits-list .export-meta-aa {
-  font-size: 0.58rem;
+  font-size: 0.64rem;
   font-weight: 700;
   letter-spacing: -0.02em;
   color: var(--sub);
 }
-#audits-list .sig-indicator { font-size: 0.55rem; vertical-align: middle; }
+#audits-list .sig-indicator { font-size: 0.62rem; vertical-align: middle; }
 #audits-list .week-batch-btns .btn-gold {
   padding: 8px 12px;
   font-size: 0.82rem;

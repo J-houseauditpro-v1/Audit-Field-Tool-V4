@@ -193,6 +193,12 @@ function sendAuditToProcessing() {
   saved[idx].readyForProcessingAt = new Date().toISOString();
   if (typeof setSaved === 'function') setSaved(saved);
 
+  if (S.scheduleJobId && typeof markScheduleJobComplete === 'function') {
+    markScheduleJobComplete(S.scheduleJobId);
+  } else if (S.scheduleJobId && typeof setScheduleJobStatus === 'function') {
+    setScheduleJobStatus(S.scheduleJobId, 'complete', { force: true });
+  }
+
   if (typeof renderHeader === 'function') renderHeader();
   if (typeof renderInterpretQueue === 'function') renderInterpretQueue();
   if (typeof renderReviewTab === 'function') renderReviewTab();
