@@ -910,6 +910,28 @@ function renderInterpretQueue() {
       loadAuditForInterpret(btn.dataset.id);
     });
   });
+  listEl.querySelectorAll('.interpret-queue-remove-btn').forEach(function(btn) {
+    btn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      removeAuditFromInterpretQueue(btn.dataset.id);
+    });
+  });
+}
+
+function removeAuditFromInterpretQueue(id) {
+  if (!id || typeof getSaved !== 'function' || typeof setSaved !== 'function') return;
+  var saved = getSaved().slice();
+  var idx = saved.findIndex(function(a) { return a.id === id; });
+  if (idx < 0) return;
+  var name = (saved[idx].customer && saved[idx].customer.name) || 'this audit';
+  if (!confirm('Remove ' + name + ' from the interpret queue?\n\nThe audit stays saved in Archive.')) return;
+  delete saved[idx].readyForProcessingAt;
+  setSaved(saved);
+  renderInterpretQueue();
+  if (typeof renderHeader === 'function') renderHeader();
+  if (typeof renderReviewTab === 'function') renderReviewTab();
+  if (typeof renderAuditsList === 'function') renderAuditsList();
+  if (typeof toast === 'function') toast('Removed from interpret queue');
 }
 
 function renderInterpretQueueRow(a) {
@@ -927,7 +949,8 @@ function renderInterpretQueueRow(a) {
         '<span class="audit-interp-status ' + statusCls + '"><span class="interp-status-dot">●</span> Interpreted? ' + statusLabel + '</span>' +
       '</div>' +
     '</div>' +
-    '<div class="week-audit-btns">' +
+    '<div class="week-audit-btns interpret-queue-btns">' +
+      '<button type="button" class="interpret-queue-remove-btn" data-id="' + escapeHtml(auditEscape(a.id)) + '" title="Remove from queue" aria-label="Remove from queue">🗑</button>' +
       '<button type="button" class="btn-xs btn-xs-gold interpret-queue-open-btn" data-id="' + escapeHtml(auditEscape(a.id)) + '">Open</button>' +
     '</div>' +
   '</div>';

@@ -2731,6 +2731,30 @@ body.modal-open {
 .interpret-queue-row {
   cursor: default;
 }
+#interpret-queue-list .interpret-queue-btns {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.interpret-queue-remove-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg3);
+  color: #e55;
+  border: 1px solid #e55;
+  border-radius: 6px;
+  padding: 5px 8px;
+  font-size: 0.9rem;
+  line-height: 1;
+  cursor: pointer;
+  min-width: 34px;
+  min-height: 34px;
+}
+.interpret-queue-remove-btn:active {
+  background: rgba(229, 85, 85, 0.12);
+}
 
 /* ── CUSTOMERS / SCHEDULE CARDS ────────────────────────────────── */
 .customer-card {
