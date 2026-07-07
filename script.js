@@ -2345,6 +2345,154 @@ function downloadTextContent(filename, content) {
   URL.revokeObjectURL(url);
 }
 
+function buildArchiveDetailGridItem(label, value) {
+  return '<div class="archive-detail-grid-item">' +
+    '<span class="archive-detail-grid-label">' + escapeHtml(label) + '</span>' +
+    '<span class="archive-detail-grid-value">' + escapeHtml(value || '—') + '</span>' +
+  '</div>';
+}
+
+function buildArchiveInterpretHtml(audit) {
+  var io = audit.interpretedOutput;
+  if (!io) return '<div class="archive-detail-empty">No interpretation saved.</div>';
+  var html = '';
+  if (io.notes && io.notes.trim()) {
+    html += '<div class="archive-detail-subsection">' +
+      '<div class="archive-detail-label">Interpreter Notes</div>' +
+      '<div class="archive-detail-notes-block">' + escapeHtml(io.notes.trim()) + '</div>' +
+    '</div>';
+  }
+  if (io.fields && io.fields.length) {
+    var byPage = {};
+    io.fields.forEach(function(f) {
+      var page = f.page || 'Other';
+      if (!byPage[page]) byPage[page] = [];
+      byPage[page].push(f);
+    });
+    html += '<div class="archive-detail-subsection"><div class="archive-detail-label">Field Output</div>';
+    Object.keys(byPage).forEach(function(page) {
+      html += '<div class="interpret-page-group archive-detail-readonly"><div class="interpret-page-title">' + escapeHtml(page) + '</div>';
+      byPage[page].forEach(function(f) {
+        html += '<div class="interpret-field-row">' +
+          '<div class="interpret-field-label">' + escapeHtml(f.section || '') + ' — ' + escapeHtml(f.field || '') + '</div>' +
+          '<div class="interpret-field-value archive-detail-field-value">' + escapeHtml(f.value || '') + '</div>' +
+        '</div>';
+      });
+      html += '</div>';
+    });
+    html += '</div>';
+  }
+  return html || '<div class="archive-detail-empty">No interpretation content.</div>';
+}
+
+function loadArchiveDetailPhotos(audit, container) {
+  if (!container) return;
+  var photos = audit.photos || [];
+  if (!photos.length) {
+    container.innerHTML = '<div class="archive-detail-empty">No photos</div>';
+    return;
+  }
+  container.innerHTML = '<div class="archive-detail-loading">Loading photos…</div>';
+  collectBackupPhotosForAudit(audit, function(photoRecords) {
+    if (!photoRecords.length) {
+      container.innerHTML = '<div class="archive-detail-empty">No photo files stored</div>';
+      return;
+    }
+    var html = '<div class="archive-detail-photo-grid">';
+    photoRecords.forEach(function(p, i) {
+      var cat = p.category ? getCategoryLabel(p.category) : 'Photo';
+      var note = (p.note || '').trim();
+      html += '<div class="archive-detail-photo-card">' +
+        '<img src="' + p.dataUrl + '" alt="Photo ' + (i + 1) + '" loading="lazy">' +
+        '<div class="archive-detail-photo-meta">' +
+          '<span class="archive-detail-photo-cat">' + escapeHtml(cat) + '</span>' +
+          (note
+            ? '<span class="archive-detail-photo-note">' + escapeHtml(note) + '</span>'
+            : '<span class="archive-detail-photo-note archive-detail-empty-inline">No note</span>') +
+        '</div>' +
+      '</div>';
+    });
+    html += '</div>';
+    container.innerHTML = html;
+  });
+}
+
+function wireArchiveDetailSectionToggles(root) {
+  if (!root) return;
+  root.querySelectorAll('.archive-detail-toggle').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var body = btn.nextElementSibling;
+      if (!body) return;
+      var open = body.classList.toggle('open');
+      var arrow = btn.querySelector('.archive-detail-toggle-arrow');
+      if (arrow) arrow.textContent = open ? '▲' : '▼';
+    });
+  });
+}
+
+function buildArchiveDetailHtml(audit) {
+  var c = audit.customer || {};
+  var photoCount = (audit.photos || []).length;
+  var html = '';
+
+  html += '<section class="archive-detail-section">' +
+    '<div class="archive-detail-section-title">Customer</div>' +
+    '<div class="archive-detail-grid">' +
+      buildArchiveDetailGridItem('Name', c.name) +
+      buildArchiveDetailGridItem('Address', c.address) +
+      buildArchiveDetailGridItem('Date', c.date) +
+      buildArchiveDetailGridItem('Co-op', c.coop) +
+      buildArchiveDetailGridItem('Property Type', c.propertyType) +
+      buildArchiveDetailGridItem('Year Built', c.yearBuilt || c.year) +
+      buildArchiveDetailGridItem('Sq Ft', c.sqFt || c.sqft) +
+      buildArchiveDetailGridItem('Customer #', c.customerNumber) +
+    '</div>' +
+  '</section>';
+
+  html += '<section class="archive-detail-section archive-detail-status-row">' +
+    '<span class="archive-detail-status-pill' + (auditHasSignature(audit) ? ' ok' : ' miss') + '">✍️ T&amp;C ' + (auditHasSignature(audit) ? 'Yes' : 'No') + '</span>' +
+    '<span class="archive-detail-status-pill' + (auditHasWords(audit) ? ' ok' : ' miss') + '">Aa Notes</span>' +
+    '<span class="archive-detail-status-pill' + (auditHasPhotos(audit) ? ' ok' : ' miss') + '">📷 ' + photoCount + '</span>' +
+    '<span class="archive-detail-status-pill' + (auditHasInterpretation(audit) ? ' ok' : ' miss') + '">⚡ Interpreted</span>' +
+  '</section>';
+
+  if (audit.readyForProcessingAt || audit.submittedAt || audit.archivedAt) {
+    html += '<section class="archive-detail-section archive-detail-timestamps">';
+    if (audit.readyForProcessingAt) html += '<div class="archive-detail-ts">Sent to Processing: ' + escapeHtml(new Date(audit.readyForProcessingAt).toLocaleString()) + '</div>';
+    if (audit.submittedAt) html += '<div class="archive-detail-ts">Submitted: ' + escapeHtml(new Date(audit.submittedAt).toLocaleString()) + '</div>';
+    if (audit.archivedAt) html += '<div class="archive-detail-ts">Archived: ' + escapeHtml(new Date(audit.archivedAt).toLocaleString()) + '</div>';
+    html += '</section>';
+  }
+
+  if (audit.researchNotes && audit.researchNotes.trim()) {
+    html += '<section class="archive-detail-section">' +
+      '<div class="archive-detail-section-title">Research Notes</div>' +
+      '<div class="archive-detail-notes-block">' + escapeHtml(audit.researchNotes.trim()) + '</div>' +
+    '</section>';
+  }
+
+  html += '<section class="archive-detail-section">' +
+    '<div class="archive-detail-section-title">General Notes</div>' +
+    '<div class="archive-detail-notes-block">' +
+      escapeHtml((audit.voiceDump && audit.voiceDump.trim()) ? audit.voiceDump.trim() : '(none)') +
+    '</div>' +
+  '</section>';
+
+  html += '<section class="archive-detail-section">' +
+    '<button type="button" class="cheat-toggle archive-detail-toggle">📷 Photos (' + photoCount + ') <span class="archive-detail-toggle-arrow">▼</span></button>' +
+    '<div class="cheat-body archive-detail-photos-body" id="archive-detail-photos-body"></div>' +
+  '</section>';
+
+  if (auditHasInterpretation(audit)) {
+    html += '<section class="archive-detail-section">' +
+      '<button type="button" class="cheat-toggle archive-detail-toggle open-section">⚡ Interpretation <span class="archive-detail-toggle-arrow">▼</span></button>' +
+      '<div class="cheat-body archive-detail-interp-body open">' + buildArchiveInterpretHtml(audit) + '</div>' +
+    '</section>';
+  }
+
+  return html;
+}
+
 function openArchiveDetailModal(id) {
   var saved = getSaved();
   var audit = saved.find(function(a) { return a.id === id; });
@@ -2357,56 +2505,13 @@ function openArchiveDetailModal(id) {
 
   var c = audit.customer || {};
   if (titleEl) titleEl.textContent = c.name || 'Audit Archive';
-  var photoCount = (audit.photos || []).length;
-  var hasSig = auditHasSignature(audit);
-  var lines = [];
-  lines.push('Customer: ' + (c.name || '—'));
-  lines.push('Address: ' + (c.address || '—'));
-  lines.push('Date: ' + (c.date || '—'));
-  lines.push('Co-op: ' + (c.coop || '—'));
-  lines.push('Year: ' + (c.yearBuilt || '—'));
-  lines.push('Sq Ft: ' + (c.sqFt || '—'));
-  lines.push('Photos: ' + photoCount);
-  lines.push('T&C Signature: ' + (hasSig ? 'Yes' : 'No'));
-  lines.push('Sent to Processing: ' + (audit.readyForProcessingAt ? new Date(audit.readyForProcessingAt).toLocaleString() : 'No'));
-  lines.push('Interpreted: ' + (auditHasInterpretation(audit) ? 'Yes' : 'No'));
-  lines.push('Submitted: ' + (audit.submittedAt ? new Date(audit.submittedAt).toLocaleString() : 'No'));
-  lines.push('Archived: ' + (audit.archivedAt ? new Date(audit.archivedAt).toLocaleString() : 'No'));
-  lines.push('');
-  if (audit.researchNotes && audit.researchNotes.trim()) {
-    lines.push('RESEARCH NOTES');
-    lines.push(audit.researchNotes.trim());
-    lines.push('');
-  }
-  lines.push('GENERAL NOTES');
-  lines.push((audit.voiceDump && audit.voiceDump.trim()) ? audit.voiceDump.trim() : '(none)');
-  lines.push('');
-  var photoNotes = buildPhotoNotesArray(audit.photos);
-  lines.push('PHOTO NOTES (' + photoNotes.length + ')');
-  if (photoNotes.length) {
-    photoNotes.forEach(function(p) {
-      lines.push('- [' + (p.categoryLabel || p.category || 'Photo') + '] ' + p.note);
-    });
-  } else {
-    lines.push('(none)');
-  }
-  if (auditHasInterpretation(audit) && audit.interpretedOutput.notes) {
-    lines.push('');
-    lines.push('INTERPRETER NOTES');
-    lines.push(audit.interpretedOutput.notes);
-  }
-
-  bodyEl.innerHTML = '<pre class="archive-detail-pre">' + escapeHtml(lines.join('\n')) + '</pre>';
+  bodyEl.innerHTML = buildArchiveDetailHtml(audit);
+  wireArchiveDetailSectionToggles(bodyEl);
+  loadArchiveDetailPhotos(audit, document.getElementById('archive-detail-photos-body'));
 
   if (actionsEl) {
     actionsEl.innerHTML =
-      '<button type="button" class="btn-gold btn-sm archive-action-btn" data-action="load" data-id="' + escapeHtml(audit.id) + '">Load</button>' +
-      '<button type="button" class="btn-sm archive-action-btn" data-action="photos" data-id="' + escapeHtml(audit.id) + '">📷 Photos</button>' +
-      '<button type="button" class="btn-sm archive-action-btn" data-action="photo-pdf" data-id="' + escapeHtml(audit.id) + '">Photo PDF</button>' +
-      '<button type="button" class="btn-sm archive-action-btn" data-action="tc-pdf" data-id="' + escapeHtml(audit.id) + '">T&amp;C PDF</button>' +
-      '<button type="button" class="btn-sm archive-action-btn" data-action="summary" data-id="' + escapeHtml(audit.id) + '">Text Summary</button>' +
-      (auditHasInterpretation(audit) ? '<button type="button" class="btn-sm archive-action-btn" data-action="interp" data-id="' + escapeHtml(audit.id) + '">Interp Summary</button>' : '');
-
+      '<button type="button" class="btn-gold btn-sm archive-action-btn" data-action="load" data-id="' + escapeHtml(audit.id) + '">Load audit</button>';
     actionsEl.querySelectorAll('.archive-action-btn').forEach(function(btn) {
       btn.addEventListener('click', function() {
         runArchiveAction(btn.dataset.action, btn.dataset.id);
@@ -2820,6 +2925,28 @@ function renderAuditsList(searchFilter) {
   });
 
   wireArchiveActionSelects(saved);
+  wireArchiveRowQuickButtons(saved);
+}
+
+function wireArchiveRowQuickButtons(saved) {
+  var list = document.getElementById('audits-list');
+  if (!list) return;
+  list.querySelectorAll('.archive-view-btn').forEach(function(btn) {
+    btn.addEventListener('click', function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      openArchiveDetailModal(btn.dataset.id);
+    });
+  });
+  list.querySelectorAll('.archive-export-zip-btn').forEach(function(btn) {
+    btn.addEventListener('click', function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      var audit = saved.find(function(a) { return a.id === btn.dataset.id; });
+      if (audit) exportSingleAuditFullZip(audit);
+      else toast('Audit not found');
+    });
+  });
 }
 
 function wireArchiveActionSelects(saved) {
@@ -2865,17 +2992,20 @@ function renderAuditsListRow(a) {
   return '<div class="week-audit-row archive-audit-row' + (a.id === S.auditId ? ' is-current' : '') + '">' +
     '<div class="archive-audit-top">' +
       '<div class="archive-audit-name">' + escapeHtml(name) + '</div>' +
-      '<select class="field archive-action-select" data-id="' + a.id + '" aria-label="Audit actions">' +
-        '<option value="">Actions…</option>' +
-        '<option value="load">Load audit</option>' +
-        '<option value="view">View details</option>' +
-        '<option value="json">Export JSON</option>' +
-        '<option value="pdf">Photo PDF</option>' +
-        '<option value="tc">T&amp;C PDF</option>' +
-        '<option value="photos">Photos ZIP</option>' +
-        '<option value="text">Text summary</option>' +
-        '<option value="delete">Delete audit</option>' +
-      '</select>' +
+      '<div class="archive-audit-quick-btns">' +
+        '<button type="button" class="archive-icon-btn archive-view-btn" data-id="' + a.id + '" title="View details" aria-label="View details">🔍</button>' +
+        '<select class="field archive-action-select archive-icon-select" data-id="' + a.id + '" aria-label="Audit actions">' +
+          '<option value="">⚙️</option>' +
+          '<option value="load">Load audit</option>' +
+          '<option value="json">Export JSON</option>' +
+          '<option value="pdf">Photo PDF</option>' +
+          '<option value="tc">T&amp;C PDF</option>' +
+          '<option value="photos">Photos ZIP</option>' +
+          '<option value="text">Text summary</option>' +
+          '<option value="delete">Delete audit</option>' +
+        '</select>' +
+        '<button type="button" class="archive-icon-btn archive-export-zip-btn" data-id="' + a.id + '" title="Full export zip" aria-label="Full export zip">🗜️</button>' +
+      '</div>' +
     '</div>' +
     '<div class="archive-audit-indicators">' + metaLine + '</div>' +
   '</div>';
@@ -3796,6 +3926,99 @@ function exportWeeklyBackup(week, progressEl) {
   });
 }
 
+function addAuditFilesToExportFolder(auditFolder, audit, entry, callback) {
+  var baseFilename = buildAuditExportFolderName(audit);
+  auditFolder.file('audit-summary.txt', buildAuditTextSummary(audit));
+
+  if (auditHasInterpretation(audit)) {
+    auditFolder.file('interpretation.txt', buildInterpretTextSummary(audit));
+    auditFolder.file('interpretation.json', JSON.stringify(audit.interpretedOutput, null, 2));
+  }
+
+  function afterPdfs() {
+    if (typeof callback === 'function') callback(entry);
+  }
+
+  function afterPhotos(photoRecords) {
+    var photosFolder = auditFolder.folder('photos');
+    photoRecords.forEach(function(photo, index) {
+      var bytes = dataUrlToJpegBytes(photo.dataUrl);
+      if (bytes) {
+        var cat = (photo.category || 'photo').replace(/[^a-zA-Z0-9_-]/g, '');
+        photosFolder.file((index + 1) + '_' + cat + '.jpg', bytes, { binary: true });
+        entry.photos++;
+      }
+    });
+
+    if (auditHasPhotos(audit)) {
+      exportSavedPhotoPDF(audit, function(blob) {
+        if (blob) {
+          auditFolder.file(baseFilename + '-photos.pdf', blob);
+          entry.photoPdf = true;
+        }
+        if (auditHasSignature(audit)) {
+          generateTCPDFFromRecord(audit, function(tcBlob) {
+            if (tcBlob) {
+              auditFolder.file(baseFilename + '-TC.pdf', tcBlob);
+              entry.tcPdf = true;
+            }
+            afterPdfs();
+          }, true);
+        } else {
+          afterPdfs();
+        }
+      }, true);
+    } else if (auditHasSignature(audit)) {
+      generateTCPDFFromRecord(audit, function(tcBlob) {
+        if (tcBlob) {
+          auditFolder.file(baseFilename + '-TC.pdf', tcBlob);
+          entry.tcPdf = true;
+        }
+        afterPdfs();
+      }, true);
+    } else {
+      afterPdfs();
+    }
+  }
+
+  collectBackupPhotosForAudit(audit, function(photoRecords) {
+    afterPhotos(photoRecords);
+  });
+}
+
+function exportSingleAuditFullZip(audit) {
+  if (!audit) { toast('Audit not found'); return; }
+  if (typeof JSZip === 'undefined') { toast('Zip library not loaded — check internet connection'); return; }
+  var folderName = buildAuditExportFolderName(audit);
+  var zip = new JSZip();
+  var auditFolder = zip.folder(folderName);
+  var entry = {
+    id: audit.id,
+    folder: folderName,
+    photos: 0,
+    photoPdf: false,
+    tcPdf: false,
+    interpreted: auditHasInterpretation(audit)
+  };
+  toast('Building export…');
+  addAuditFilesToExportFolder(auditFolder, audit, entry, function() {
+    zip.generateAsync({ type: 'blob' }).then(function(blob) {
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url;
+      a.download = folderName + '_export.zip';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast('Export ready: ' + (audit.customer.name || 'audit'));
+    }).catch(function(e) {
+      toast('Zip error: ' + e.message);
+      console.error('[SingleExport] zip error:', e);
+    });
+  });
+}
+
 function exportFullExport(opts) {
   var progressEl = opts && opts.progressEl;
   var downloadName = (opts && opts.downloadName) || 'AFT_Full_Export.zip';
@@ -3864,70 +4087,16 @@ function exportFullExport(opts) {
     var audit = saved[auditIndex];
     var folderName = buildAuditExportFolderName(audit);
     var auditFolder = zip.folder(folderName);
-    var baseFilename = folderName;
     var entry = { id: audit.id, folder: folderName, photos: 0, photoPdf: false, tcPdf: false, interpreted: auditHasInterpretation(audit) };
 
     if (progressEl) {
       progressEl.textContent = 'Building export — ' + (auditIndex + 1) + ' / ' + saved.length + ': ' + (audit.customer.name || 'Unnamed');
     }
 
-    auditFolder.file('audit-summary.txt', buildAuditTextSummary(audit));
-
-    if (auditHasInterpretation(audit)) {
-      auditFolder.file('interpretation.txt', buildInterpretTextSummary(audit));
-      auditFolder.file('interpretation.json', JSON.stringify(audit.interpretedOutput, null, 2));
-    }
-
-    function afterPdfs() {
-      manifest.audits.push(entry);
+    addAuditFilesToExportFolder(auditFolder, audit, entry, function(doneEntry) {
+      manifest.audits.push(doneEntry);
       auditIndex++;
       setTimeout(processNextAudit, 10);
-    }
-
-    function afterPhotos(photoRecords) {
-      var photosFolder = auditFolder.folder('photos');
-      photoRecords.forEach(function(photo, index) {
-        var bytes = dataUrlToJpegBytes(photo.dataUrl);
-        if (bytes) {
-          var cat = (photo.category || 'photo').replace(/[^a-zA-Z0-9_-]/g, '');
-          photosFolder.file((index + 1) + '_' + cat + '.jpg', bytes, { binary: true });
-          entry.photos++;
-        }
-      });
-
-      if (auditHasPhotos(audit)) {
-        exportSavedPhotoPDF(audit, function(blob) {
-          if (blob) {
-            auditFolder.file(baseFilename + '-photos.pdf', blob);
-            entry.photoPdf = true;
-          }
-          if (auditHasSignature(audit)) {
-            generateTCPDFFromRecord(audit, function(tcBlob) {
-              if (tcBlob) {
-                auditFolder.file(baseFilename + '-TC.pdf', tcBlob);
-                entry.tcPdf = true;
-              }
-              afterPdfs();
-            }, true);
-          } else {
-            afterPdfs();
-          }
-        }, true);
-      } else if (auditHasSignature(audit)) {
-        generateTCPDFFromRecord(audit, function(tcBlob) {
-          if (tcBlob) {
-            auditFolder.file(baseFilename + '-TC.pdf', tcBlob);
-            entry.tcPdf = true;
-          }
-          afterPdfs();
-        }, true);
-      } else {
-        afterPdfs();
-      }
-    }
-
-    collectBackupPhotosForAudit(audit, function(photoRecords) {
-      afterPhotos(photoRecords);
     });
   }
 
