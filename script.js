@@ -2464,13 +2464,6 @@ function buildArchiveDetailHtml(audit) {
     html += '</section>';
   }
 
-  if (audit.researchNotes && audit.researchNotes.trim()) {
-    html += '<section class="archive-detail-section">' +
-      '<div class="archive-detail-section-title">Research Notes</div>' +
-      '<div class="archive-detail-notes-block">' + escapeHtml(audit.researchNotes.trim()) + '</div>' +
-    '</section>';
-  }
-
   html += '<section class="archive-detail-section">' +
     '<div class="archive-detail-section-title">General Notes</div>' +
     '<div class="archive-detail-notes-block">' +
@@ -3004,7 +2997,7 @@ function renderAuditsListRow(a) {
           '<option value="text">Text summary</option>' +
           '<option value="delete">Delete audit</option>' +
         '</select>' +
-        '<button type="button" class="archive-icon-btn archive-export-zip-btn" data-id="' + a.id + '" title="Full export zip" aria-label="Full export zip">🗜️</button>' +
+        '<button type="button" class="archive-icon-btn archive-export-zip-btn" data-id="' + a.id + '" title="Full export zip" aria-label="Full export zip">📁</button>' +
       '</div>' +
     '</div>' +
     '<div class="archive-audit-indicators">' + metaLine + '</div>' +
