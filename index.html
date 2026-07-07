@@ -210,7 +210,7 @@
 
   <!-- CHEAT SHEET -->
   <section class="card">
-    <button class="cheat-toggle" id="cheat-toggle">📋 Field Cheat Sheet <span id="cheat-arrow">▼</span></button>
+    <button type="button" class="cheat-toggle" id="cheat-toggle">📋 Field Cheat Sheet <span id="cheat-arrow">▼</span></button>
     <div class="cheat-body" id="cheat-body">
       <div class="cheat-item">1. <b>HVAC SYSTEM</b> — Type (heat pump/gas/electric)? Tonnage? Strip backup heat (stage 2)? Ecobee eligible?</div>
       <div class="cheat-item">2. <b>SUPPLEMENTAL HEAT/COOL</b> — Wood stove? Pellet stove? Electric space heaters? Window units? How many, where?</div>
@@ -346,7 +346,7 @@
   <div id="select-toolbar" class="select-toolbar" style="display:none;">
     <button class="btn-sm" id="btn-select-all">Select All</button>
     <span id="select-count" class="select-count">0 selected</span>
-    <button class="btn-sm" id="btn-cancel-select">Cancel</button>
+    <button type="button" class="btn-sm" id="btn-cancel-select">Cancel</button>
   </div>
 
   <!-- DELETE SELECTED BAR -->
@@ -573,12 +573,12 @@
   <div id="export-full-backup-section" style="display:none;">
     <section class="card export-full-backup-card">
       <div class="card-sub">Backup every saved audit for restore on this or another device. Photos are stored in JSON (base64) so the app can import everything correctly.</div>
-      <button class="btn-gold btn-full" id="export-full-backup-btn" style="margin-top:8px;">💾 Full Backup</button>
+      <button type="button" class="btn-gold btn-full" id="export-full-backup-btn" style="margin-top:8px;">💾 Full Backup</button>
       <div class="pdf-progress" id="export-full-backup-progress">Building backup...</div>
     </section>
     <section class="card export-full-export-card" style="margin-top:10px;">
       <div class="card-sub">Human-readable export — actual JPG photos, photo PDFs, T&amp;C PDFs, and structured text summaries (not for app restore).</div>
-      <button class="btn-outline btn-full" id="export-full-export-btn" style="margin-top:8px;">📂 Full Export</button>
+      <button type="button" class="btn-outline btn-full" id="export-full-export-btn" style="margin-top:8px;">📂 Full Export</button>
       <div class="pdf-progress" id="export-full-export-progress">Building export...</div>
     </section>
   </div>
@@ -794,7 +794,7 @@
   <div class="modal-box archive-detail-box">
     <div class="modal-header">
       <span class="modal-title" id="archive-detail-title">Audit Archive</span>
-      <button class="btn-sm" id="archive-detail-close">✕ Close</button>
+      <button type="button" class="btn-sm" id="archive-detail-close">✕ Close</button>
     </div>
     <div id="archive-detail-body" class="archive-detail-body"></div>
     <div class="archive-detail-actions" id="archive-detail-actions"></div>

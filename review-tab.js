@@ -45,14 +45,7 @@ function wireReviewTab() {
   });
 
   document.querySelectorAll('.date-field').forEach(function(wrap) {
-    var input = wrap.querySelector('input[type="date"]');
-    if (!input || input.id.indexOf('review-') !== 0) return;
-    var sync = function() {
-      if (typeof syncDateFieldPlaceholder === 'function') syncDateFieldPlaceholder(wrap);
-    };
-    input.addEventListener('input', sync);
-    input.addEventListener('change', sync);
-    sync();
+    if (typeof bindDateFieldPlaceholder === 'function') bindDateFieldPlaceholder(wrap);
   });
 
   var researchEl = document.getElementById('review-research-notes');
