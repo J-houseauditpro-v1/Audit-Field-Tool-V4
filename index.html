@@ -58,7 +58,7 @@
       <div class="card-title" style="margin-bottom:0;">📅 Schedule</div>
       <button class="btn-gold btn-sm" id="customers-refresh-btn">🔄 Sheets</button>
     </div>
-    <div class="card-sub">Add jobs manually or import from Google Sheets. Customer # + address are used for research — name is for your reference only.</div>
+    <div class="card-sub">Add jobs manually or import from Google Sheets. Customer # + address are used for research — name is for your reference only. Use full address with city, state, zip for Zillow lookup.</div>
     <input class="field" id="customers-search" type="search" placeholder="Search by #, name, or address…" style="width:100%;margin-top:8px;">
     <div id="customers-fetch-status" style="font-size:0.8rem;margin-top:6px;display:none;"></div>
     <div id="customers-cache-note" class="card-sub" style="margin-top:4px;display:none;"></div>
@@ -94,49 +94,41 @@
 
   <section class="card">
     <div class="card-title">🔍 Research</div>
-    <div class="card-sub">County assessor property lookup via RentCast — review and edit before forwarding to Audit.</div>
-    <div id="research-no-key-warn" class="tc-warn" style="display:none;">⚠️ No RentCast API key — add it in Settings → Research Settings.</div>
-    <div class="card-sub" id="research-model-badge-wrap" style="margin-top:6px;display:none;">Source: <span id="research-model-badge" class="interp-model-badge">—</span></div>
+    <div class="card-sub">Look up property details on Zillow, enter sq ft and year built, then forward to Audit. No API keys — works offline after you enter data.</div>
     <div class="card-title" id="research-selected-title" style="font-size:0.95rem;margin-top:10px;">Select a job from the queue below</div>
     <div class="card-sub" id="research-selected-meta"></div>
-    <button type="button" class="btn-gold btn-full" id="research-run-btn" style="margin-top:12px;">🔍 Run Research</button>
+    <button type="button" class="btn-gold btn-full" id="research-zillow-btn" style="margin-top:12px;">🏠 Zillow Lookup</button>
+    <div class="card-sub" style="margin-top:8px;font-size:0.75rem;color:var(--sub);">Opens Google search with the job address + Zillow.com — tap the first Zillow link, note sq ft and year built, then return here.</div>
     <button type="button" class="btn-outline btn-full" id="research-forward-btn" disabled style="margin-top:8px;opacity:0.5;">→ Forward to Audit</button>
-    <div id="research-token-usage" class="card-sub" style="display:none;margin-top:8px;"></div>
   </section>
 
   <section class="card" id="research-output-card" style="display:none">
     <div class="row-between">
-      <div class="card-title">Research Results</div>
-      <button type="button" class="btn-sm" id="research-save-btn">Save Edits</button>
+      <div class="card-title">Property Details</div>
+      <button type="button" class="btn-sm" id="research-save-btn">Save</button>
     </div>
-    <div class="card-sub">Findings ranked by confidence — tap Edit on any row to correct before forwarding.</div>
-    <div id="research-findings-list"></div>
-    <div class="schedule-add-field" style="margin-top:12px;">
-      <label class="schedule-field-label" for="research-summary-edit">Summary</label>
-      <textarea class="field research-textarea" id="research-summary-edit" rows="3"></textarea>
-    </div>
-    <div class="card-title" style="font-size:0.9rem;margin-top:12px;">Pre-fill for Audit</div>
-    <div class="schedule-add-grid">
+    <div class="card-sub">Enter what you found on Zillow (or county records). These pre-fill Audit Data when you forward.</div>
+    <div class="schedule-add-grid" style="margin-top:10px;">
       <div class="schedule-add-field schedule-add-field-grow">
         <label class="schedule-field-label" for="research-prefill-property-type">Property Type</label>
-        <input class="field" id="research-prefill-property-type" type="text" placeholder="Property type">
+        <input class="field" id="research-prefill-property-type" type="text" placeholder="e.g. Single Family">
       </div>
       <div class="schedule-add-field">
         <label class="schedule-field-label" for="research-prefill-year">Year Built</label>
-        <input class="field" id="research-prefill-year" type="text" inputmode="numeric">
+        <input class="field" id="research-prefill-year" type="text" inputmode="numeric" placeholder="e.g. 2000">
       </div>
       <div class="schedule-add-field">
         <label class="schedule-field-label" for="research-prefill-sqft">Sq Ft</label>
-        <input class="field" id="research-prefill-sqft" type="text" inputmode="numeric">
+        <input class="field" id="research-prefill-sqft" type="text" inputmode="numeric" placeholder="e.g. 1972">
       </div>
       <div class="schedule-add-field schedule-add-field-grow">
         <label class="schedule-field-label" for="research-prefill-coop">Co-op</label>
-        <input class="field" id="research-prefill-coop" type="text">
+        <input class="field" id="research-prefill-coop" type="text" placeholder="Electric co-op">
       </div>
     </div>
     <div class="schedule-add-field" style="margin-top:8px;">
       <label class="schedule-field-label" for="research-prefill-notes">General Notes for Field</label>
-      <textarea class="field research-textarea" id="research-prefill-notes" rows="4"></textarea>
+      <textarea class="field research-textarea" id="research-prefill-notes" rows="3" placeholder="Optional notes for the field audit"></textarea>
     </div>
   </section>
 
@@ -655,22 +647,6 @@
       <div class="card-sub" style="margin-top:8px;">Field Mapping <span style="color:var(--sub);font-size:0.75rem;">(JSON: {"Field Name": "q5_questionId"})</span></div>
       <textarea class="voice-area more-field-full" id="jotform-field-map-textarea" style="height:120px;font-size:0.72rem;" placeholder='{\n  "Member Name - First": "q3_first",\n  "Address": "q4_address"\n}'></textarea>
       <button class="btn-gold btn-full" id="jotform-settings-save" style="margin-top:8px;">Save JotForm Settings</button>
-    </div>
-  </section>
-
-  <section class="card more-card">
-    <div class="card-title">🔍 Research Settings</div>
-    <div class="card-sub">RentCast property lookup for Jobs → Research. County assessor data: sq ft, beds, year built, tax records.</div>
-
-    <div class="card-sub" style="margin-top:10px;">RentCast API Key <span style="color:var(--sub);font-size:0.75rem;">(free 50/month — <a href="https://www.rentcast.io/api" target="_blank" rel="noopener" style="color:var(--gold);">rentcast.io/api</a>)</span></div>
-    <input class="field more-field-full" id="research-rentcast-key-input" type="password" placeholder="Paste RentCast API key" autocomplete="off">
-    <div style="display:flex;gap:8px;margin-top:8px;">
-      <button class="btn-gold btn-full" id="research-rentcast-key-save">Save Key</button>
-      <button class="btn-sm" id="research-rentcast-test-btn">Test</button>
-    </div>
-    <div id="research-rentcast-test-result" style="font-size:0.8rem;margin-top:6px;display:none;"></div>
-    <div class="card-sub" style="margin-top:10px;color:var(--sub);font-size:0.72rem;">
-      Address on Schedule should include city, state, zip — e.g. <b>11006 Maple Park Dr, Fort Smith, AR 72916</b>
     </div>
   </section>
 

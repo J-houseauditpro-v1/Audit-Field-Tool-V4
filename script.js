@@ -741,8 +741,6 @@ function openSettingsPanel() {
   document.getElementById('tab-more').style.display = 'block';
   initAftMoreTab();
   if (typeof refreshInterpretSettingsUI === 'function') refreshInterpretSettingsUI();
-  if (typeof initResearchSettings === 'function') initResearchSettings();
-  if (typeof refreshResearchSettingsUI === 'function') refreshResearchSettingsUI();
   if (typeof initGoogleSheetsSettings === 'function') initGoogleSheetsSettings();
   var auditorInput = document.getElementById('auditor-name-input');
   if (auditorInput) {
