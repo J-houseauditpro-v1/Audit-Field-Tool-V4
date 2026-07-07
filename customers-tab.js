@@ -593,14 +593,16 @@ function renderCustomersList(rows, filter) {
 
 function renderScheduleQueueRow(job) {
   return '<div class="schedule-queue-row week-audit-row" data-id="' + escapeHtmlC(job.id) + '">' +
-    '<div class="week-audit-info schedule-queue-info">' +
-      '<div class="week-audit-name schedule-queue-name">' + escapeHtmlC(formatScheduleJobDisplayName(job)) + '</div>' +
+    '<div class="schedule-queue-info">' +
+      '<div class="schedule-queue-top">' +
+        '<div class="week-audit-name schedule-queue-name">' + escapeHtmlC(formatScheduleJobDisplayName(job)) + '</div>' +
+        '<div class="schedule-row-actions">' +
+          '<button type="button" class="schedule-icon-btn schedule-edit-btn" data-id="' + escapeHtmlC(job.id) + '" title="Edit" aria-label="Edit">✏️</button>' +
+          '<button type="button" class="schedule-icon-btn schedule-delete-btn" data-id="' + escapeHtmlC(job.id) + '" title="Delete" aria-label="Delete">🗑</button>' +
+          '<button type="button" class="btn-xs-gold customer-start-btn" data-id="' + escapeHtmlC(job.id) + '">Start →</button>' +
+        '</div>' +
+      '</div>' +
       '<div class="schedule-queue-address">' + escapeHtmlC(job.address || '—') + '</div>' +
-    '</div>' +
-    '<div class="schedule-row-actions">' +
-      '<button type="button" class="schedule-icon-btn schedule-edit-btn" data-id="' + escapeHtmlC(job.id) + '" title="Edit" aria-label="Edit">✏️</button>' +
-      '<button type="button" class="schedule-icon-btn schedule-delete-btn" data-id="' + escapeHtmlC(job.id) + '" title="Delete" aria-label="Delete">🗑</button>' +
-      '<button type="button" class="btn-xs-gold customer-start-btn" data-id="' + escapeHtmlC(job.id) + '">Start →</button>' +
     '</div>' +
   '</div>';
 }
