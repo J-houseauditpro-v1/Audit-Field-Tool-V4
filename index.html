@@ -430,8 +430,7 @@
       <div class="card-title" style="margin-bottom:0;">Archive</div>
       <button class="btn-gold btn-sm" id="save-btn">Save Current Audit</button>
     </div>
-    <div class="card-sub">Searchable audit database — organized by week and day.</div>
-    <input class="field" id="archive-search" type="search" placeholder="Search by name, address, date, co-op…" style="width:100%;margin-top:8px;">
+    <input class="field" id="archive-search" type="search" placeholder="Search by name, address, date, co-op…" style="width:100%;">
     <div id="audits-list"><div class="empty-msg">No saved audits yet</div></div>
   </section>
 
@@ -470,14 +469,9 @@
 
   <div id="export-full-backup-section" style="display:none;">
     <section class="card export-full-backup-card">
-      <div class="card-sub">Backup every saved audit for restore on this or another device. Photos are stored in JSON (base64) so the app can import everything correctly.</div>
-      <button type="button" class="btn-gold btn-full" id="export-full-backup-btn" style="margin-top:8px;">💾 Full Backup</button>
-      <div class="pdf-progress" id="export-full-backup-progress">Building backup...</div>
-    </section>
-    <section class="card export-full-export-card" style="margin-top:10px;">
-      <div class="card-sub">Human-readable export — actual JPG photos, photo PDFs, T&amp;C PDFs, and structured text summaries (not for app restore).</div>
-      <button type="button" class="btn-outline btn-full" id="export-full-export-btn" style="margin-top:8px;">📂 Full Export</button>
-      <div class="pdf-progress" id="export-full-export-progress">Building export...</div>
+      <div class="card-sub">One tap builds <b>two zip files</b> in sequence: <b>AFT_Full_Backup.zip</b> (restore into the app) and <b>AFT_Full_Export.zip</b> (photos &amp; PDFs). Save both to the same folder in Files — tap Replace when asked to overwrite your previous backup.</div>
+      <button type="button" class="btn-gold btn-full" id="export-full-both-btn" style="margin-top:8px;">💾 Backup + Export</button>
+      <div class="pdf-progress" id="export-full-both-progress">Building backup...</div>
     </section>
   </div>
 

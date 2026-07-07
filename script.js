@@ -465,11 +465,8 @@ function toggleScheduleAddSection() {
 }
 
 function wireExportFullButtons() {
-  safeBindClick('export-full-backup-btn', function() {
-    exportFullBackup(document.getElementById('export-full-backup-progress'));
-  });
-  safeBindClick('export-full-export-btn', function() {
-    exportFullExport(document.getElementById('export-full-export-progress'));
+  safeBindClick('export-full-both-btn', function() {
+    exportFullBackupAndExport(document.getElementById('export-full-both-progress'));
   });
 }
 
@@ -2789,30 +2786,28 @@ function renderAuditsList(searchFilter) {
     list.appendChild(group);
   });
 
-  list.querySelectorAll('.load-btn').forEach(function(btn) {
-    btn.addEventListener('click', function() { loadAudit(btn.dataset.id); });
-  });
-  list.querySelectorAll('.view-btn').forEach(function(btn) {
-    btn.addEventListener('click', function() { openArchiveDetailModal(btn.dataset.id); });
-  });
-  list.querySelectorAll('.photos-btn').forEach(function(btn) {
-    btn.addEventListener('click', function() {
-      var audit = saved.find(function(a) { return a.id === btn.dataset.id; });
-      if (audit) exportAuditPhotosZip(audit);
-    });
-  });
-  list.querySelectorAll('.summary-btn').forEach(function(btn) {
-    btn.addEventListener('click', function() {
-      var audit = saved.find(function(a) { return a.id === btn.dataset.id; });
-      if (audit) {
-        var safeName = (audit.customer.name || 'audit').replace(/[^a-zA-Z0-9_-]/g, '_');
-        downloadTextContent(safeName + '-audit-summary.txt', buildAuditTextSummary(audit));
+  list.querySelectorAll('.archive-action-select').forEach(function(sel) {
+    sel.addEventListener('change', function() {
+      var action = sel.value;
+      var id = sel.dataset.id;
+      sel.value = '';
+      if (!action || !id) return;
+      var audit = saved.find(function(a) { return a.id === id; });
+      if (action === 'load') {
+        loadAudit(id);
+      } else if (action === 'view') {
+        openArchiveDetailModal(id);
+      } else if (action === 'photos') {
+        if (audit) exportAuditPhotosZip(audit);
+        else toast('Audit not found');
+      } else if (action === 'text') {
+        if (audit) {
+          var safeName = (audit.customer.name || 'audit').replace(/[^a-zA-Z0-9_-]/g, '_');
+          downloadTextContent(safeName + '-audit-summary.txt', buildAuditTextSummary(audit));
+        }
+      } else if (action === 'delete') {
+        if (confirm('Delete this saved audit?')) deleteAudit(id);
       }
-    });
-  });
-  list.querySelectorAll('.del-btn').forEach(function(btn) {
-    btn.addEventListener('click', function() {
-      if (confirm('Delete this saved audit?')) deleteAudit(btn.dataset.id);
     });
   });
 }
@@ -2825,17 +2820,18 @@ function renderAuditsListRow(a) {
     ? (date + ' · 📥 legacy · ' + photoCount + ' photos')
     : (date + ' · ' + photoCount + ' photos' + (a.archivedAt ? ' · Archived' : ''));
   return '<div class="week-audit-row archive-audit-row' + (a.id === S.auditId ? ' is-current' : '') + '">' +
-    '<div class="week-audit-info">' +
-      '<div class="week-audit-name">' + escapeHtml(name) + '</div>' +
-      '<div class="week-audit-meta">' + escapeHtml(metaLine) + '</div>' +
+    '<div class="archive-audit-info">' +
+      '<div class="archive-audit-name">' + escapeHtml(name) + '</div>' +
+      '<div class="archive-audit-meta">' + escapeHtml(metaLine) + '</div>' +
     '</div>' +
-    '<div class="week-audit-btns archive-audit-btns">' +
-      '<button class="btn-xs load-btn" data-id="' + a.id + '">Load</button>' +
-      '<button class="btn-xs view-btn" data-id="' + a.id + '">View</button>' +
-      '<button class="btn-xs photos-btn" data-id="' + a.id + '">📷</button>' +
-      '<button class="btn-xs summary-btn" data-id="' + a.id + '">Text</button>' +
-      '<button class="btn-xs btn-danger-sm del-btn" data-id="' + a.id + '">🗑</button>' +
-    '</div>' +
+    '<select class="field archive-action-select" data-id="' + a.id + '" aria-label="Audit actions">' +
+      '<option value="">Actions…</option>' +
+      '<option value="load">Load audit</option>' +
+      '<option value="view">View details</option>' +
+      '<option value="photos">Export photos ZIP</option>' +
+      '<option value="text">Download text summary</option>' +
+      '<option value="delete">Delete audit</option>' +
+    '</select>' +
   '</div>';
 }
 
@@ -3746,8 +3742,13 @@ function exportBackupBundle(audits, opts) {
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
-        if (progressEl) progressEl.style.display = 'none';
-        toast('Backup exported — ' + manifest.auditCount + ' audit' + (manifest.auditCount !== 1 ? 's' : '') + ', ' + photoCount + ' photo' + (photoCount !== 1 ? 's' : ''));
+        if (progressEl && !opts.onComplete) progressEl.style.display = 'none';
+        if (!opts.quiet) {
+          toast('Backup exported — ' + manifest.auditCount + ' audit' + (manifest.auditCount !== 1 ? 's' : '') + ', ' + photoCount + ' photo' + (photoCount !== 1 ? 's' : ''));
+        }
+        if (typeof opts.onComplete === 'function') {
+          setTimeout(opts.onComplete, 600);
+        }
       }).catch(function(e) {
         if (progressEl) progressEl.style.display = 'none';
         toast('Zip error: ' + e.message);
@@ -3801,11 +3802,37 @@ function exportBackupBundle(audits, opts) {
 function exportFullBackup(progressEl) {
   var saved = getSaved();
   if (!saved.length) { toast('No saved audits to back up'); return; }
-  var dateStr = new Date().toISOString().split('T')[0];
   exportBackupBundle(saved, {
     bundleType: BACKUP_BUNDLE_FULL,
     progressEl: progressEl,
-    downloadName: 'AFT_Full_Backup_' + dateStr + '.zip'
+    downloadName: 'AFT_Full_Backup.zip'
+  });
+}
+
+function exportFullBackupAndExport(progressEl) {
+  var saved = getSaved();
+  if (!saved.length) { toast('No saved audits to back up'); return; }
+  if (progressEl) {
+    progressEl.style.display = 'block';
+    progressEl.textContent = 'Step 1 of 2: Building backup...';
+  }
+  exportBackupBundle(saved, {
+    bundleType: BACKUP_BUNDLE_FULL,
+    progressEl: progressEl,
+    downloadName: 'AFT_Full_Backup.zip',
+    quiet: true,
+    onComplete: function() {
+      if (progressEl) progressEl.textContent = 'Step 2 of 2: Building export...';
+      exportFullExport({
+        progressEl: progressEl,
+        downloadName: 'AFT_Full_Export.zip',
+        quiet: true,
+        onComplete: function() {
+          if (progressEl) progressEl.style.display = 'none';
+          toast('Both zips ready — save each to your backup folder');
+        }
+      });
+    }
   });
 }
 
@@ -3821,7 +3848,11 @@ function exportWeeklyBackup(week, progressEl) {
   });
 }
 
-function exportFullExport(progressEl) {
+function exportFullExport(opts) {
+  var progressEl = opts && opts.progressEl;
+  var downloadName = (opts && opts.downloadName) || 'AFT_Full_Export.zip';
+  var onComplete = opts && opts.onComplete;
+  var quiet = opts && opts.quiet;
   var saved = getSaved();
   if (!saved.length) { toast('No saved audits to export'); return; }
   if (typeof JSZip === 'undefined') { toast('Zip library not loaded — check internet connection'); return; }
@@ -3859,17 +3890,21 @@ function exportFullExport(progressEl) {
       );
       if (progressEl) progressEl.textContent = 'Zipping export...';
       zip.generateAsync({ type: 'blob' }).then(function(blob) {
-        var dateStr = new Date().toISOString().split('T')[0];
         var url = URL.createObjectURL(blob);
         var a = document.createElement('a');
         a.href = url;
-        a.download = 'AFT_Full_Export_' + dateStr + '.zip';
+        a.download = downloadName;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
-        if (progressEl) progressEl.style.display = 'none';
-        toast('Full export ready — ' + saved.length + ' audit' + (saved.length !== 1 ? 's' : ''));
+        if (progressEl && !onComplete) progressEl.style.display = 'none';
+        if (!quiet) {
+          toast('Full export ready — ' + saved.length + ' audit' + (saved.length !== 1 ? 's' : ''));
+        }
+        if (typeof onComplete === 'function') {
+          setTimeout(onComplete, 600);
+        }
       }).catch(function(e) {
         if (progressEl) progressEl.style.display = 'none';
         toast('Zip error: ' + e.message);
