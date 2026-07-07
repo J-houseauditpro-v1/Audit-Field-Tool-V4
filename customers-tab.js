@@ -247,6 +247,7 @@ function initCustomersTab() {
     customersTabInitialized = true;
     wireCustomersTab();
   }
+  if (typeof initAftSharedSelects === 'function') initAftSharedSelects();
   scheduleJobs = loadScheduleJobs();
   refreshScheduleAddForm();
   renderCustomersList(scheduleJobs, getScheduleSearchFilter());
@@ -315,6 +316,10 @@ function setScheduleAddFormValues(values) {
     var el = document.getElementById(id);
     if (el) el.value = map[id];
   });
+  ['schedule-add-property-type', 'schedule-add-coop'].forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el && typeof syncSelectPlaceholder === 'function') syncSelectPlaceholder(el);
+  });
 }
 
 function clearScheduleAddForm() {
@@ -337,6 +342,10 @@ function loadJobIntoAddForm(job) {
   scheduleEditingId = job.id;
   setScheduleAddFormValues(job);
   refreshScheduleAddForm();
+  var body = document.getElementById('schedule-add-body');
+  var arrow = document.getElementById('schedule-add-arrow');
+  if (body) body.classList.add('open');
+  if (arrow) arrow.textContent = '▲';
   var card = document.getElementById('schedule-add-card');
   if (card && card.scrollIntoView) card.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
@@ -696,7 +705,6 @@ function startAuditFromCustomer(row) {
   if (typeof renderHeader === 'function') renderHeader();
   if (typeof renderVoiceDump === 'function') renderVoiceDump();
   if (typeof renderPhotoList === 'function') renderPhotoList();
-  if (typeof renderResearchNotesSummary === 'function') renderResearchNotesSummary();
   if (typeof persistAuditRecord === 'function') persistAuditRecord();
   if (typeof switchMainTab === 'function') {
     switchMainTab('audit', 'voice');

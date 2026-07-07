@@ -250,6 +250,20 @@ body {
   flex: 1 1 0;
   min-width: 0;
 }
+.field-row-single > .field,
+.field-row-single > .date-field {
+  flex: 1 1 100%;
+  width: 100%;
+}
+.customer-info-fields { margin-top: 0; }
+select.field { cursor: pointer; }
+select.field.is-empty {
+  color: #888;
+}
+select.field option {
+  color: var(--text);
+  background: var(--bg2);
+}
 .field {
   flex: 1;
   min-width: 120px;
@@ -304,7 +318,13 @@ input[type="date"] { color-scheme: dark; }
     flex: 1 1 calc(50% - 4px);
   }
 }
-select.field { cursor: pointer; }
+.card-search-only {
+  padding: 10px 14px;
+  margin-bottom: 10px;
+}
+.card-search-only .card-sub {
+  margin-bottom: 0;
+}
 
 /* CHEAT SHEET */
 .card:has(.cheat-toggle) {
@@ -1898,6 +1918,40 @@ body.modal-open {
 }
 
 /* ── SCHEDULE TAB ─────────────────────────────────── */
+.schedule-add-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.schedule-add-toggle {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  background: none;
+  border: none;
+  color: var(--gold);
+  font-weight: 600;
+  font-size: 0.9rem;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+}
+.schedule-add-header-btns {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.schedule-add-body {
+  display: none;
+  margin-top: 10px;
+}
+.schedule-add-body.open {
+  display: block;
+}
 .schedule-add-grid {
   display: flex;
   gap: 8px;
