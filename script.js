@@ -456,6 +456,14 @@ function toggleCheatSheet() {
   arrow.textContent = open ? '▲' : '▼';
 }
 
+function toggleArchiveFullBackupSection() {
+  var body = document.getElementById('archive-full-backup-body');
+  var arrow = document.getElementById('archive-full-backup-arrow');
+  if (!body || !arrow) return;
+  var open = body.classList.toggle('open');
+  arrow.textContent = open ? '▲' : '▼';
+}
+
 function toggleScheduleAddSection() {
   var body = document.getElementById('schedule-add-body');
   var arrow = document.getElementById('schedule-add-arrow');
@@ -494,6 +502,11 @@ function bootstrapGlobalClickHandlers() {
     if (e.target.closest('#cheat-toggle')) {
       e.preventDefault();
       toggleCheatSheet();
+      return;
+    }
+    if (e.target.closest('#archive-full-backup-toggle')) {
+      e.preventDefault();
+      toggleArchiveFullBackupSection();
       return;
     }
     if (e.target.closest('#schedule-add-toggle')) {
@@ -639,7 +652,7 @@ var subTabsInitialized = false;
 
 var MAIN_TAB_CONFIG = {
   audit: { subs: ['voice', 'tc', 'photos', 'review'], defaultSub: 'voice' },
-  processing: { subs: ['interpret', 'archive', 'export'], defaultSub: 'interpret' }
+  processing: { subs: ['interpret', 'archive'], defaultSub: 'interpret' }
 };
 
 function subPanelId(sub) { return 'tab-' + sub; }
@@ -656,7 +669,6 @@ function runSubTabInit(main, sub) {
   if (main === 'audit' && sub === 'review' && typeof initReviewTab === 'function') initReviewTab();
   if (main === 'processing' && sub === 'archive' && typeof renderAuditsList === 'function') renderAuditsList();
   if (main === 'processing' && sub === 'interpret' && typeof initInterpretTab === 'function') initInterpretTab();
-  if (main === 'processing' && sub === 'export' && typeof renderWeeklyBatches === 'function') renderWeeklyBatches();
 }
 
 function switchSubTab(main, sub, options) {
@@ -2275,8 +2287,6 @@ function closeModal() {
 
 // ── AUDITS TAB ────────────────────────────────────────────────
 function initAuditsTab() {
-  var saveBtn = document.getElementById('save-btn');
-  if (saveBtn) saveBtn.addEventListener('click', saveAudit);
   var newBtn = document.getElementById('new-btn');
   if (newBtn) newBtn.addEventListener('click', function() {
     if (!S.name && !S.dump && !S.photos.length) { toast('Nothing to save — add info first'); return; }
@@ -2731,8 +2741,8 @@ function deleteAudit(id) {
   deletePhotosByAuditId(id, function() {
     deleteLegacyFiles(id, function() {
       renderAuditsList();
-      var exportPanel = document.getElementById('tab-export');
-      if (exportPanel && exportPanel.style.display === 'block') renderWeeklyBatches();
+      var archivePanel = document.getElementById('tab-archive');
+      if (archivePanel && archivePanel.style.display === 'block') renderAuditsList();
       toast('Audit deleted');
     });
   });
@@ -2748,6 +2758,10 @@ function renderAuditsList(searchFilter) {
     filter = searchInput ? searchInput.value.trim().toLowerCase() : '';
   }
   var filtered = filter ? saved.filter(function(a) { return auditMatchesArchiveSearch(a, filter); }) : saved;
+
+  var fullBackupSection = document.getElementById('archive-full-backup-section');
+  if (fullBackupSection) fullBackupSection.style.display = saved.length ? 'block' : 'none';
+  if (saved.length) wireExportFullButtons();
 
   if (!filtered.length) {
     list.innerHTML = filter
@@ -2781,11 +2795,36 @@ function renderAuditsList(searchFilter) {
         '<span class="week-group-title">' + week.label + '</span>' +
         '<span class="week-group-count">' + week.audits.length + ' audit' + (week.audits.length !== 1 ? 's' : '') + '</span>' +
       '</div>' +
+      '<div class="week-batch-btns">' +
+        '<button type="button" class="btn-outline btn-full week-backup-btn">Weekly Backup</button>' +
+        '<button type="button" class="btn-gold btn-full week-scheduler-btn">Weekly T&amp;C + Photos</button>' +
+      '</div>' +
+      '<div class="pdf-progress week-pdf-progress">Building bundle...</div>' +
       daySections;
 
     list.appendChild(group);
+
+    var backupBtn = group.querySelector('.week-backup-btn');
+    var schedulerBtn = group.querySelector('.week-scheduler-btn');
+    var progress = group.querySelector('.week-pdf-progress');
+    if (backupBtn) {
+      backupBtn.addEventListener('click', function() {
+        exportWeeklyBackup(week, progress);
+      });
+    }
+    if (schedulerBtn) {
+      schedulerBtn.addEventListener('click', function() {
+        exportWeekSchedulerBundle(week, progress);
+      });
+    }
   });
 
+  wireArchiveActionSelects(saved);
+}
+
+function wireArchiveActionSelects(saved) {
+  var list = document.getElementById('audits-list');
+  if (!list) return;
   list.querySelectorAll('.archive-action-select').forEach(function(sel) {
     sel.addEventListener('change', function() {
       var action = sel.value;
@@ -2797,6 +2836,14 @@ function renderAuditsList(searchFilter) {
         loadAudit(id);
       } else if (action === 'view') {
         openArchiveDetailModal(id);
+      } else if (action === 'json') {
+        exportSavedAudit(id);
+      } else if (action === 'pdf') {
+        if (audit) exportSavedPhotoPDF(audit);
+        else toast('Audit not found');
+      } else if (action === 'tc') {
+        if (audit) generateTCPDFFromRecord(audit, null);
+        else toast('Audit not found');
       } else if (action === 'photos') {
         if (audit) exportAuditPhotosZip(audit);
         else toast('Audit not found');
@@ -2814,35 +2861,32 @@ function renderAuditsList(searchFilter) {
 
 function renderAuditsListRow(a) {
   var name = a.customer.name || 'Unnamed';
-  var date = formatExportRowDate(a.customer.date || '—');
-  var photoCount = (a.photos || []).length;
-  var metaLine = a.legacyImport
-    ? (date + ' · 📥 legacy · ' + photoCount + ' photos')
-    : (date + ' · ' + photoCount + ' photos' + (a.archivedAt ? ' · Archived' : ''));
+  var metaLine = formatExportRowMeta(a);
   return '<div class="week-audit-row archive-audit-row' + (a.id === S.auditId ? ' is-current' : '') + '">' +
-    '<div class="archive-audit-info">' +
+    '<div class="archive-audit-top">' +
       '<div class="archive-audit-name">' + escapeHtml(name) + '</div>' +
-      '<div class="archive-audit-meta">' + escapeHtml(metaLine) + '</div>' +
+      '<select class="field archive-action-select" data-id="' + a.id + '" aria-label="Audit actions">' +
+        '<option value="">Actions…</option>' +
+        '<option value="load">Load audit</option>' +
+        '<option value="view">View details</option>' +
+        '<option value="json">Export JSON</option>' +
+        '<option value="pdf">Photo PDF</option>' +
+        '<option value="tc">T&amp;C PDF</option>' +
+        '<option value="photos">Photos ZIP</option>' +
+        '<option value="text">Text summary</option>' +
+        '<option value="delete">Delete audit</option>' +
+      '</select>' +
     '</div>' +
-    '<select class="field archive-action-select" data-id="' + a.id + '" aria-label="Audit actions">' +
-      '<option value="">Actions…</option>' +
-      '<option value="load">Load audit</option>' +
-      '<option value="view">View details</option>' +
-      '<option value="photos">Export photos ZIP</option>' +
-      '<option value="text">Download text summary</option>' +
-      '<option value="delete">Delete audit</option>' +
-    '</select>' +
+    '<div class="archive-audit-indicators">' + metaLine + '</div>' +
   '</div>';
 }
 
-// ── EXPORT TAB ────────────────────────────────────────────────
-function initExportTab() {
-  wireExportFullButtons();
+// ── EXPORT HELPERS (used by Archive tab) ─────────────────────
+function renderWeeklyBatches() {
+  renderAuditsList();
 }
 
-function renderExportSummary() {
-  // No longer used — export tab uses weekly batch view
-}
+function renderExportSummary() {}
 
 // Builds the "lean" export object used by every JSON export path — customer
 // info, voice dump, and now photo notes (text only, never the image data).
@@ -3476,102 +3520,6 @@ function addSchedulerAuditPdfs(audit, baseFilename, photoFolder, tcFolder, entry
   }
 }
 
-function renderWeeklyBatches() {
-  var container = document.getElementById('weekly-batches-container');
-  if (!container) return;
-
-  var saved = getSaved();
-  var fullBackupSection = document.getElementById('export-full-backup-section');
-
-  if (!saved.length) {
-    if (fullBackupSection) fullBackupSection.style.display = 'none';
-    container.innerHTML = '<div class="export-empty-msg">No saved audits yet.<br>Complete an audit on the Audit Data tab, then save it on the Audits tab.</div>';
-    return;
-  }
-
-  if (fullBackupSection) fullBackupSection.style.display = 'block';
-  wireExportFullButtons();
-
-  var weeks = groupAuditsByWeek(saved);
-  container.innerHTML = '';
-
-  weeks.forEach(function(week) {
-    var group = document.createElement('div');
-    group.className = 'week-group';
-
-    var daySections = week.days.map(function(day) {
-      var auditRows = day.audits.map(function(a) {
-        var name = a.customer.name || 'Unnamed';
-        var metaLine = formatExportRowMeta(a);
-        return '<div class="week-audit-row week-export-row">' +
-          '<div class="week-export-main">' +
-            '<div class="week-audit-name">' + escapeHtml(name) + '</div>' +
-            '<div class="week-export-line2">' +
-              '<div class="week-audit-meta">' + metaLine + '</div>' +
-              '<div class="week-audit-btns">' +
-                '<button class="btn-xs row-json-btn" data-id="' + a.id + '">📦 JSON</button>' +
-                '<button class="btn-xs-gold row-pdf-btn" data-id="' + a.id + '">📷 PDF</button>' +
-                '<button class="btn-xs row-tc-btn" data-id="' + a.id + '">📋 T&C</button>' +
-              '</div>' +
-            '</div>' +
-          '</div>' +
-        '</div>';
-      }).join('');
-      return '<div class="day-group">' +
-        '<div class="day-group-header">' +
-          '<span class="day-group-title">' + escapeHtml(day.label) + '</span>' +
-          '<span class="day-group-count">' + day.audits.length + ' audit' + (day.audits.length !== 1 ? 's' : '') + '</span>' +
-        '</div>' +
-        auditRows +
-      '</div>';
-    }).join('');
-
-    group.innerHTML =
-      '<div class="week-group-header">' +
-        '<span class="week-group-title">' + week.label + '</span>' +
-        '<span class="week-group-count">' + week.audits.length + ' audit' + (week.audits.length !== 1 ? 's' : '') + '</span>' +
-      '</div>' +
-      '<div class="week-batch-btns">' +
-        '<button class="btn-gold btn-full week-backup-btn">Weekly Backup</button>' +
-        '<button class="btn-gold btn-full week-scheduler-btn">Weekly T&amp;C + Photos</button>' +
-      '</div>' +
-      '<div class="pdf-progress week-pdf-progress">Building bundle...</div>' +
-      daySections;
-
-    container.appendChild(group);
-
-    group.querySelector('.week-backup-btn').addEventListener('click', function() {
-      var progress = group.querySelector('.week-pdf-progress');
-      exportWeeklyBackup(week, progress);
-    });
-
-    group.querySelector('.week-scheduler-btn').addEventListener('click', function() {
-      var progress = group.querySelector('.week-pdf-progress');
-      exportWeekSchedulerBundle(week, progress);
-    });
-
-    group.querySelectorAll('.row-json-btn').forEach(function(btn) {
-      btn.addEventListener('click', function() { exportSavedAudit(btn.dataset.id); });
-    });
-
-    group.querySelectorAll('.row-pdf-btn').forEach(function(btn) {
-      btn.addEventListener('click', function() {
-        var audit = saved.find(function(a) { return a.id === btn.dataset.id; });
-        if (audit) exportSavedPhotoPDF(audit);
-        else toast('Audit not found');
-      });
-    });
-
-    group.querySelectorAll('.row-tc-btn').forEach(function(btn) {
-      btn.addEventListener('click', function() {
-        var audit = saved.find(function(a) { return a.id === btn.dataset.id; });
-        if (audit) generateTCPDFFromRecord(audit, null);
-        else toast('Audit not found');
-      });
-    });
-  });
-}
-
 function exportSavedPhotoPDF(audit, callback, blobMode) {
   // Legacy-imported audit — pass the original photo PDF straight through
   // instead of trying to regenerate one. There's no S.photos data to build
@@ -4032,8 +3980,6 @@ function restoreFromBackupFile(file) {
   }).then(function(result) {
     toast('Restored ' + result.auditCount + ' audit' + (result.auditCount !== 1 ? 's' : '') + ' and ' + result.photoCount + ' photo' + (result.photoCount !== 1 ? 's' : ''));
     renderAuditsList();
-    var exportPanel = document.getElementById('tab-export');
-    if (exportPanel && exportPanel.style.display === 'block') renderWeeklyBatches();
   }).catch(function(err) {
     toast(err.message || 'Restore failed');
     console.error('[BackupRestore] failed:', err);
