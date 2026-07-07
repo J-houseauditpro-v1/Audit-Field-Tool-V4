@@ -1990,17 +1990,67 @@ body.modal-open {
   grid-column: 1 / -1;
 }
 #customers-list .week-group {
-  margin-bottom: 12px;
+  margin-bottom: 6px;
 }
 #customers-list .week-group:last-child {
   margin-bottom: 0;
 }
+#customers-list .week-group-header {
+  padding: 6px 10px;
+}
+#customers-list .week-group-title {
+  font-size: 0.86rem;
+  line-height: 1.15;
+}
+#customers-list .week-group-count {
+  font-size: 0.72rem;
+}
 #customers-list .day-group {
-  margin-bottom: 4px;
+  margin-top: 3px;
+  margin-bottom: 0;
+  padding-left: 8px;
+}
+#customers-list .day-group-header {
+  padding: 1px 0 0;
+  margin-bottom: 0;
+}
+#customers-list .day-group-title {
+  font-size: 0.72rem;
+  line-height: 1.1;
+}
+#customers-list .day-group-count {
+  font-size: 0.66rem;
 }
 #customers-list .week-audit-row,
 #customers-list .schedule-queue-row {
-  padding: 5px 12px;
+  padding: 2px 10px;
+}
+#customers-list .schedule-queue-name {
+  font-size: 0.84rem;
+  line-height: 1.1;
+}
+#customers-list .schedule-queue-address {
+  margin-top: 0;
+  font-size: 0.66rem;
+  line-height: 1.1;
+}
+#customers-list .schedule-queue-top {
+  gap: 6px;
+}
+#customers-list .schedule-row-actions {
+  gap: 4px;
+}
+#customers-list .schedule-icon-btn {
+  min-width: 28px;
+  min-height: 28px;
+  padding: 3px 5px;
+  font-size: 0.82rem;
+}
+#customers-list .schedule-queue-row .customer-start-btn {
+  padding: 3px 7px;
+  font-size: 0.66rem;
+  line-height: 1.1;
+  white-space: nowrap;
 }
 .schedule-queue-row {
   align-items: stretch;
@@ -2079,8 +2129,9 @@ body.modal-open {
   color: #e55;
 }
 #customers-list .schedule-queue-row .customer-start-btn {
-  padding: 5px 8px;
-  font-size: 0.72rem;
+  padding: 3px 7px;
+  font-size: 0.66rem;
+  line-height: 1.1;
   white-space: nowrap;
 }
 .schedule-job-card .schedule-card-top {
