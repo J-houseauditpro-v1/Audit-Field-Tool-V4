@@ -45,100 +45,56 @@
 <!-- ======================== JOBS MAIN TAB ======================== -->
 <div id="tab-jobs" class="tabpanel main-tabpanel">
 
-  <div class="main-subnav" id="subnav-jobs">
-    <button type="button" class="sub-pill active" data-main="jobs" data-sub="schedule">Schedule</button>
-    <button type="button" class="sub-pill" data-main="jobs" data-sub="research">Research</button>
-  </div>
-
-<!-- ======================== SCHEDULE SUB-TAB ======================== -->
-<div id="tab-schedule" class="main-subpanel">
-
   <section class="card">
     <div class="row-between" style="margin-bottom:10px;">
-      <div class="card-title" style="margin-bottom:0;">📅 Schedule</div>
+      <div class="card-title" style="margin-bottom:0;">📅 Jobs</div>
       <button class="btn-gold btn-sm" id="customers-refresh-btn">🔄 Sheets</button>
     </div>
-    <div class="card-sub">Add jobs manually or import from Google Sheets. Customer # + address are used for research — name is for your reference only. Use full address with city, state, zip for Zillow lookup.</div>
-    <input class="field" id="customers-search" type="search" placeholder="Search by #, name, or address…" style="width:100%;margin-top:8px;">
+    <input class="field" id="customers-search" type="search" placeholder="Search by name or address…" style="width:100%;">
     <div id="customers-fetch-status" style="font-size:0.8rem;margin-top:6px;display:none;"></div>
     <div id="customers-cache-note" class="card-sub" style="margin-top:4px;display:none;"></div>
   </section>
 
   <section class="card" id="schedule-add-card">
-    <div class="card-title" style="margin-bottom:6px;">+ Add Job</div>
-    <div class="schedule-add-grid">
-      <div class="schedule-add-field schedule-add-number-wrap">
-        <label class="schedule-field-label" for="schedule-add-number">Customer #</label>
-        <input class="field" id="schedule-add-number" type="number" min="1" inputmode="numeric" autocomplete="off">
-      </div>
-      <div class="schedule-add-field schedule-add-field-grow">
-        <label class="schedule-field-label" for="schedule-add-name">Name</label>
-        <input class="field" id="schedule-add-name" type="text" placeholder="Customer name" autocomplete="off">
-      </div>
+    <div class="row-between" style="align-items:flex-start;margin-bottom:8px;">
+      <div class="card-title" id="schedule-add-title" style="margin-bottom:0;">+ Add Job</div>
+      <button type="button" class="btn-sm" id="schedule-zillow-btn" title="Zillow lookup">🏠 Zillow</button>
+    </div>
+    <div class="schedule-add-field">
+      <label class="schedule-field-label" for="schedule-add-name">Name</label>
+      <input class="field" id="schedule-add-name" type="text" placeholder="Customer name" autocomplete="off">
     </div>
     <div class="schedule-add-field" style="margin-top:8px;">
       <label class="schedule-field-label" for="schedule-add-address">Address</label>
-      <input class="field schedule-add-address-input" id="schedule-add-address" type="text" placeholder="Street address" autocomplete="off">
+      <input class="field schedule-add-address-input" id="schedule-add-address" type="text" placeholder="Full address with city, state, zip" autocomplete="off">
     </div>
-    <button type="button" class="btn-gold btn-full" id="schedule-add-btn" style="margin-top:10px;">Add to Schedule</button>
+    <div class="schedule-property-grid" style="margin-top:8px;">
+      <div class="schedule-add-field schedule-field-full">
+        <label class="schedule-field-label" for="schedule-add-property-type">Property Type</label>
+        <input class="field" id="schedule-add-property-type" type="text" placeholder="e.g. Single Family" autocomplete="off">
+      </div>
+      <div class="schedule-add-field">
+        <label class="schedule-field-label" for="schedule-add-year">Year Built</label>
+        <input class="field" id="schedule-add-year" type="text" inputmode="numeric" placeholder="e.g. 2000" autocomplete="off">
+      </div>
+      <div class="schedule-add-field">
+        <label class="schedule-field-label" for="schedule-add-sqft">Sq Ft</label>
+        <input class="field" id="schedule-add-sqft" type="text" inputmode="numeric" placeholder="e.g. 1972" autocomplete="off">
+      </div>
+      <div class="schedule-add-field schedule-field-full">
+        <label class="schedule-field-label" for="schedule-add-coop">Co-op</label>
+        <input class="field" id="schedule-add-coop" type="text" placeholder="Electric co-op" autocomplete="off">
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:10px;">
+      <button type="button" class="btn-gold btn-full" id="schedule-add-btn">Add to Schedule</button>
+      <button type="button" class="btn-outline btn-full" id="schedule-cancel-edit-btn" style="display:none;">Cancel</button>
+    </div>
   </section>
 
   <div id="customers-list">
     <div class="empty-msg">No jobs yet — add one above or import from Google Sheets</div>
   </div>
-
-</div>
-
-<!-- ======================== RESEARCH SUB-TAB ======================== -->
-<div id="tab-research" class="main-subpanel" style="display:none">
-
-  <section class="card">
-    <div class="card-title">🔍 Research</div>
-    <div class="card-sub">Look up property details on Zillow, enter sq ft and year built, then forward to Audit. No API keys — works offline after you enter data.</div>
-    <div class="card-title" id="research-selected-title" style="font-size:0.95rem;margin-top:10px;">Select a job from the queue below</div>
-    <div class="card-sub" id="research-selected-meta"></div>
-    <button type="button" class="btn-gold btn-full" id="research-zillow-btn" style="margin-top:12px;">🏠 Zillow Lookup</button>
-    <div class="card-sub" style="margin-top:8px;font-size:0.75rem;color:var(--sub);">Opens Google search with the job address + Zillow.com — tap the first Zillow link, note sq ft and year built, then return here.</div>
-    <button type="button" class="btn-outline btn-full" id="research-forward-btn" disabled style="margin-top:8px;opacity:0.5;">→ Forward to Audit</button>
-  </section>
-
-  <section class="card" id="research-output-card" style="display:none">
-    <div class="row-between">
-      <div class="card-title">Property Details</div>
-      <button type="button" class="btn-sm" id="research-save-btn">Save</button>
-    </div>
-    <div class="card-sub">Enter what you found on Zillow (or county records). These pre-fill Audit Data when you forward.</div>
-    <div class="schedule-add-grid" style="margin-top:10px;">
-      <div class="schedule-add-field schedule-add-field-grow">
-        <label class="schedule-field-label" for="research-prefill-property-type">Property Type</label>
-        <input class="field" id="research-prefill-property-type" type="text" placeholder="e.g. Single Family">
-      </div>
-      <div class="schedule-add-field">
-        <label class="schedule-field-label" for="research-prefill-year">Year Built</label>
-        <input class="field" id="research-prefill-year" type="text" inputmode="numeric" placeholder="e.g. 2000">
-      </div>
-      <div class="schedule-add-field">
-        <label class="schedule-field-label" for="research-prefill-sqft">Sq Ft</label>
-        <input class="field" id="research-prefill-sqft" type="text" inputmode="numeric" placeholder="e.g. 1972">
-      </div>
-      <div class="schedule-add-field schedule-add-field-grow">
-        <label class="schedule-field-label" for="research-prefill-coop">Co-op</label>
-        <input class="field" id="research-prefill-coop" type="text" placeholder="Electric co-op">
-      </div>
-    </div>
-    <div class="schedule-add-field" style="margin-top:8px;">
-      <label class="schedule-field-label" for="research-prefill-notes">General Notes for Field</label>
-      <textarea class="field research-textarea" id="research-prefill-notes" rows="3" placeholder="Optional notes for the field audit"></textarea>
-    </div>
-  </section>
-
-  <section class="card">
-    <div class="card-title">Research Queue</div>
-    <div class="card-sub">Organized by week and day — same layout as Archive.</div>
-    <div id="research-queue-list"><div class="empty-msg">No jobs on Schedule — add jobs on the Schedule tab first.</div></div>
-  </section>
-
-</div>
 
 </div><!-- /tab-jobs -->
 
@@ -222,7 +178,7 @@
     <div class="row-between">
       <div class="card-title">🔍 Research Notes</div>
     </div>
-    <div class="card-sub">Populated from reviewed web research on the Jobs → Research tab. Can pre-fill customer info and general notes.</div>
+    <div class="card-sub">Property details from Zillow lookup (Jobs tab). Shown on Audit Data after you start an audit.</div>
     <div id="research-notes-summary"><div class="empty-msg">No research notes yet</div></div>
   </section>
 

@@ -1,6 +1,5 @@
-// ── SCHEDULE TAB (Jobs → Schedule) ───────────────────────────
-// Manual job list with customer #, name, and address.
-// Research pass will use customerNumber + address only (not name).
+// ── JOBS TAB ─────────────────────────────────────────────────
+// Manual job list: add jobs, Zillow lookup, week/day queue, start audit.
 
 var customersTabInitialized = false;
 var scheduleJobs = [];
@@ -76,6 +75,7 @@ function normalizeScheduleJob(raw) {
     coop: raw.coop || '',
     year: raw.year || '',
     sqft: raw.sqft || '',
+    propertyType: raw.propertyType || '',
     source: raw.source || 'manual',
     status: normalizeScheduleStatus(raw.status),
     auditId: raw.auditId || null,
@@ -136,7 +136,7 @@ function markScheduleJobComplete(jobId) {
 }
 
 function refreshScheduleListIfVisible() {
-  var panel = document.getElementById('tab-schedule');
+  var panel = document.getElementById('tab-jobs');
   if (panel && panel.style.display !== 'none' && typeof renderCustomersList === 'function') {
     renderCustomersList(getScheduleJobs(), getScheduleSearchFilter());
   }
@@ -188,20 +188,9 @@ function getScheduleJobs() {
   return scheduleJobs;
 }
 
-// Payload for future research API — name intentionally excluded
-function getResearchJobPayload(job) {
-  if (!job) return null;
-  return {
-    customerNumber: job.customerNumber,
-    address: job.address
-  };
-}
-
 function formatScheduleJobDisplayName(job) {
   if (!job) return '—';
-  var label = '#' + job.customerNumber;
-  if (job.name && job.name.trim()) label += ' ' + job.name.trim();
-  return label;
+  return (job.name && job.name.trim()) ? job.name.trim() : 'Unnamed job';
 }
 
 function formatScheduleJobDisplayLine(job) {
@@ -213,6 +202,45 @@ function addressKey(addr) {
   return (addr || '').trim().toLowerCase();
 }
 
+function getScheduleJobDateKey(job) {
+  if (job.date && /^\d{4}-\d{2}-\d{2}/.test(job.date)) return job.date.split('T')[0];
+  if (job.createdAt) return job.createdAt.split('T')[0];
+  return 'unknown';
+}
+
+function groupScheduleJobsByWeek(jobs) {
+  if (typeof getWeekStart !== 'function' || typeof getWeekLabel !== 'function') {
+    return [{ monday: new Date(), label: 'All Jobs', jobs: jobs, days: [{ dateKey: 'all', label: 'All', jobs: jobs }] }];
+  }
+  var weeks = {};
+  jobs.forEach(function(job) {
+    var dateKey = getScheduleJobDateKey(job);
+    var monday = getWeekStart(dateKey === 'unknown' ? null : dateKey);
+    var key = monday.toISOString();
+    if (!weeks[key]) weeks[key] = { monday: monday, label: getWeekLabel(monday), jobs: [] };
+    weeks[key].jobs.push(job);
+  });
+  return Object.values(weeks).sort(function(a, b) { return b.monday - a.monday; }).map(function(week) {
+    week.days = groupScheduleJobsIntoDays(week.jobs);
+    return week;
+  });
+}
+
+function groupScheduleJobsIntoDays(jobs) {
+  var days = {};
+  jobs.forEach(function(job) {
+    var key = getScheduleJobDateKey(job);
+    var label = typeof getDayLabel === 'function' ? getDayLabel(key) : key;
+    if (!days[key]) days[key] = { dateKey: key, label: label, jobs: [] };
+    days[key].jobs.push(job);
+  });
+  return Object.values(days).sort(function(a, b) {
+    if (a.dateKey === 'unknown') return 1;
+    if (b.dateKey === 'unknown') return -1;
+    return b.dateKey.localeCompare(a.dateKey);
+  });
+}
+
 // ── INIT ──────────────────────────────────────────────────────
 function initCustomersTab() {
   if (!customersTabInitialized) {
@@ -220,7 +248,6 @@ function initCustomersTab() {
     wireCustomersTab();
   }
   scheduleJobs = loadScheduleJobs();
-  scheduleEditingId = null;
   refreshScheduleAddForm();
   renderCustomersList(scheduleJobs, getScheduleSearchFilter());
   updateScheduleCacheNote();
@@ -243,19 +270,75 @@ function wireCustomersTab() {
   }
 
   var addBtn = document.getElementById('schedule-add-btn');
-  if (addBtn) addBtn.addEventListener('click', addManualScheduleJob);
+  if (addBtn) addBtn.addEventListener('click', saveScheduleJobFromForm);
+
+  var cancelBtn = document.getElementById('schedule-cancel-edit-btn');
+  if (cancelBtn) cancelBtn.addEventListener('click', clearScheduleAddForm);
+
+  var zillowBtn = document.getElementById('schedule-zillow-btn');
+  if (zillowBtn) {
+    zillowBtn.addEventListener('click', function() {
+      var addrInput = document.getElementById('schedule-add-address');
+      openZillowLookupForAddress(addrInput ? addrInput.value : '');
+    });
+  }
 
   var addAddress = document.getElementById('schedule-add-address');
   if (addAddress) {
     addAddress.addEventListener('keydown', function(e) {
-      if (e.key === 'Enter') addManualScheduleJob();
+      if (e.key === 'Enter') saveScheduleJobFromForm();
     });
   }
 }
 
+function getScheduleAddFormValues() {
+  return {
+    name: (document.getElementById('schedule-add-name') || {}).value || '',
+    address: (document.getElementById('schedule-add-address') || {}).value || '',
+    propertyType: (document.getElementById('schedule-add-property-type') || {}).value || '',
+    year: (document.getElementById('schedule-add-year') || {}).value || '',
+    sqft: (document.getElementById('schedule-add-sqft') || {}).value || '',
+    coop: (document.getElementById('schedule-add-coop') || {}).value || ''
+  };
+}
+
+function setScheduleAddFormValues(values) {
+  var map = {
+    'schedule-add-name': values.name || '',
+    'schedule-add-address': values.address || '',
+    'schedule-add-property-type': values.propertyType || '',
+    'schedule-add-year': values.year || '',
+    'schedule-add-sqft': values.sqft || '',
+    'schedule-add-coop': values.coop || ''
+  };
+  Object.keys(map).forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) el.value = map[id];
+  });
+}
+
+function clearScheduleAddForm() {
+  scheduleEditingId = null;
+  setScheduleAddFormValues({});
+  refreshScheduleAddForm();
+}
+
 function refreshScheduleAddForm() {
-  var numInput = document.getElementById('schedule-add-number');
-  if (numInput) numInput.value = getNextCustomerNumber(getScheduleJobs());
+  var titleEl = document.getElementById('schedule-add-title');
+  var addBtn = document.getElementById('schedule-add-btn');
+  var cancelBtn = document.getElementById('schedule-cancel-edit-btn');
+  var editing = !!scheduleEditingId;
+  if (titleEl) titleEl.textContent = editing ? 'Edit Job' : '+ Add Job';
+  if (addBtn) addBtn.textContent = editing ? 'Save Job' : 'Add to Schedule';
+  if (cancelBtn) cancelBtn.style.display = editing ? 'block' : 'none';
+}
+
+function loadJobIntoAddForm(job) {
+  scheduleEditingId = job.id;
+  setScheduleAddFormValues(job);
+  refreshScheduleAddForm();
+  var card = document.getElementById('schedule-add-card');
+  if (card && card.scrollIntoView) card.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 function updateScheduleCacheNote() {
@@ -270,34 +353,58 @@ function updateScheduleCacheNote() {
   }
 }
 
-function addManualScheduleJob() {
-  var numInput = document.getElementById('schedule-add-number');
-  var nameInput = document.getElementById('schedule-add-name');
-  var addrInput = document.getElementById('schedule-add-address');
-  var name = nameInput ? nameInput.value.trim() : '';
-  var address = addrInput ? addrInput.value.trim() : '';
+function saveScheduleJobFromForm() {
+  var values = getScheduleAddFormValues();
+  var name = values.name.trim();
+  var address = values.address.trim();
   if (!name) { toast('Enter a customer name.'); return; }
   if (!address) { toast('Enter an address.'); return; }
 
+  var researchOutput = typeof buildResearchOutputFromPrefill === 'function'
+    ? buildResearchOutputFromPrefill({
+      propertyType: values.propertyType.trim(),
+      year: values.year.trim(),
+      sqft: values.sqft.trim(),
+      coop: values.coop.trim(),
+      generalNotes: ''
+    })
+    : null;
+
   var jobs = getScheduleJobs().slice();
-  var num = numInput ? parseInt(numInput.value, 10) : NaN;
-  if (isNaN(num) || num < 1) num = getNextCustomerNumber(jobs);
+
+  if (scheduleEditingId) {
+    updateScheduleJob(scheduleEditingId, {
+      name: name,
+      address: address,
+      propertyType: values.propertyType.trim(),
+      year: values.year.trim(),
+      sqft: values.sqft.trim(),
+      coop: values.coop.trim(),
+      researchOutput: researchOutput
+    });
+    clearScheduleAddForm();
+    renderCustomersList(getScheduleJobs(), getScheduleSearchFilter());
+    toast('Job saved.');
+    return;
+  }
 
   jobs.push(normalizeScheduleJob({
     id: newScheduleJobId(),
-    customerNumber: num,
+    customerNumber: getNextCustomerNumber(jobs),
     name: name,
     address: address,
+    propertyType: values.propertyType.trim(),
+    year: values.year.trim(),
+    sqft: values.sqft.trim(),
+    coop: values.coop.trim(),
+    researchOutput: researchOutput,
     source: 'manual',
     createdAt: new Date().toISOString()
   }));
   saveScheduleJobs(jobs);
-
-  if (nameInput) nameInput.value = '';
-  if (addrInput) addrInput.value = '';
-  refreshScheduleAddForm();
+  clearScheduleAddForm();
   renderCustomersList(jobs, getScheduleSearchFilter());
-  toast('Added customer #' + num);
+  toast('Added to schedule.');
 }
 
 function updateScheduleJob(id, updates) {
@@ -305,10 +412,6 @@ function updateScheduleJob(id, updates) {
   var idx = jobs.findIndex(function(j) { return j.id === id; });
   if (idx < 0) return false;
   var job = jobs[idx];
-  if (updates.customerNumber !== undefined) {
-    var n = parseInt(updates.customerNumber, 10);
-    job.customerNumber = (!isNaN(n) && n >= 1) ? n : job.customerNumber;
-  }
   if (updates.name !== undefined) job.name = updates.name.trim();
   if (updates.address !== undefined) job.address = updates.address.trim();
   if (updates.status !== undefined) job.status = normalizeScheduleStatus(updates.status);
@@ -327,9 +430,8 @@ function updateScheduleJob(id, updates) {
 function deleteScheduleJob(id) {
   var jobs = getScheduleJobs().filter(function(j) { return j.id !== id; });
   saveScheduleJobs(jobs);
-  scheduleEditingId = null;
+  if (scheduleEditingId === id) clearScheduleAddForm();
   renderCustomersList(jobs, getScheduleSearchFilter());
-  refreshScheduleAddForm();
 }
 
 // ── FETCH FROM GOOGLE SHEETS ─────────────────────────────────
@@ -391,6 +493,15 @@ function mergeSheetRowsIntoSchedule(sheetRows) {
       existing.year = row.year || existing.year;
       existing.sqft = row.sqft || existing.sqft;
       if (existing.source !== 'manual') existing.source = 'sheets';
+      if (typeof buildResearchOutputFromPrefill === 'function') {
+        existing.researchOutput = buildResearchOutputFromPrefill({
+          propertyType: existing.propertyType || '',
+          year: existing.year,
+          sqft: existing.sqft,
+          coop: existing.coop,
+          generalNotes: ''
+        });
+      }
       updated++;
     } else {
       jobs.push(normalizeScheduleJob({
@@ -411,7 +522,6 @@ function mergeSheetRowsIntoSchedule(sheetRows) {
 
   saveScheduleJobs(jobs);
   renderCustomersList(jobs, getScheduleSearchFilter());
-  refreshScheduleAddForm();
 }
 
 function parseSheetRows(rows, headers) {
@@ -437,13 +547,7 @@ function parseSheetRows(rows, headers) {
 // ── RENDER LIST ───────────────────────────────────────────────
 function jobMatchesFilter(job, filter) {
   if (!filter) return true;
-  var hay = [
-    String(job.customerNumber),
-    '#' + job.customerNumber,
-    job.name,
-    job.address,
-    job.coop
-  ].join(' ').toLowerCase();
+  var hay = [job.name, job.address, job.coop, job.propertyType].join(' ').toLowerCase();
   return hay.indexOf(filter) !== -1;
 }
 
@@ -460,57 +564,78 @@ function renderCustomersList(rows, filter) {
     return;
   }
 
-  listEl.innerHTML = filtered.map(function(job) {
-    if (scheduleEditingId === job.id) return renderScheduleEditCard(job);
-    return renderScheduleViewCard(job);
-  }).join('');
+  if (filter) {
+    listEl.innerHTML = '<div class="week-group">' + filtered.map(function(job) {
+      return renderScheduleQueueRow(job);
+    }).join('') + '</div>';
+  } else {
+    var weeks = groupScheduleJobsByWeek(filtered);
+    listEl.innerHTML = weeks.map(function(week) {
+      var daySections = week.days.map(function(day) {
+        var rowsHtml = day.jobs.map(function(job) { return renderScheduleQueueRow(job); }).join('');
+        return '<div class="day-group"><div class="day-group-header"><span class="day-group-title">' + escapeHtmlC(day.label) + '</span><span class="day-group-count">' + day.jobs.length + ' job' + (day.jobs.length !== 1 ? 's' : '') + '</span></div>' + rowsHtml + '</div>';
+      }).join('');
+      return '<div class="week-group"><div class="week-group-header"><span class="week-group-title">' + escapeHtmlC(week.label) + '</span><span class="week-group-count">' + week.jobs.length + ' job' + (week.jobs.length !== 1 ? 's' : '') + '</span></div>' + daySections + '</div>';
+    }).join('');
+  }
+
+  wireScheduleQueueActions(jobs, filter);
+}
+
+function renderScheduleQueueRow(job) {
+  var status = normalizeScheduleStatus(job.status);
+  var sourceTag = job.source === 'sheets'
+    ? '<span class="schedule-source-tag">Sheets</span>'
+    : '<span class="schedule-source-tag manual">Manual</span>';
+  var completeClass = status === 'complete' ? 'schedule-icon-btn is-complete' : 'schedule-icon-btn';
+  return '<div class="schedule-queue-row week-audit-row" data-id="' + escapeHtmlC(job.id) + '">' +
+    '<div class="week-audit-info">' +
+      '<div class="week-audit-name schedule-queue-name">' + escapeHtmlC(formatScheduleJobDisplayName(job)) + '</div>' +
+      '<div class="schedule-queue-address">' + escapeHtmlC(job.address || '—') + '</div>' +
+      '<div class="week-audit-meta schedule-queue-meta">' +
+        renderScheduleStatusBadge(status) +
+        sourceTag +
+      '</div>' +
+    '</div>' +
+    '<div class="schedule-row-actions">' +
+      '<button type="button" class="schedule-icon-btn schedule-edit-btn" data-id="' + escapeHtmlC(job.id) + '" title="Edit" aria-label="Edit">✏️</button>' +
+      '<button type="button" class="schedule-icon-btn schedule-delete-btn" data-id="' + escapeHtmlC(job.id) + '" title="Delete" aria-label="Delete">🗑</button>' +
+      '<button type="button" class="' + completeClass + ' schedule-mark-complete-btn" data-id="' + escapeHtmlC(job.id) + '" title="Mark complete" aria-label="Mark complete"' + (status === 'complete' ? ' disabled' : '') + '>✓</button>' +
+      '<button type="button" class="btn-xs-gold customer-start-btn" data-id="' + escapeHtmlC(job.id) + '">Start →</button>' +
+    '</div>' +
+  '</div>';
+}
+
+function wireScheduleQueueActions(jobs, filter) {
+  var listEl = document.getElementById('customers-list');
+  if (!listEl) return;
 
   listEl.querySelectorAll('.customer-start-btn').forEach(function(btn) {
-    btn.addEventListener('click', function() {
-      var id = btn.dataset.id;
-      var job = jobs.find(function(j) { return j.id === id; });
+    btn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      var job = jobs.find(function(j) { return j.id === btn.dataset.id; });
       if (job) startAuditFromCustomer(job);
     });
   });
   listEl.querySelectorAll('.schedule-edit-btn').forEach(function(btn) {
-    btn.addEventListener('click', function() {
-      scheduleEditingId = btn.dataset.id;
-      renderCustomersList(jobs, filter);
+    btn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      var job = jobs.find(function(j) { return j.id === btn.dataset.id; });
+      if (job) loadJobIntoAddForm(job);
     });
   });
   listEl.querySelectorAll('.schedule-delete-btn').forEach(function(btn) {
-    btn.addEventListener('click', function() {
+    btn.addEventListener('click', function(e) {
+      e.stopPropagation();
       var id = btn.dataset.id;
       var job = jobs.find(function(j) { return j.id === id; });
-      var label = job ? ('#' + job.customerNumber + ' ' + (job.name || 'job')) : 'this job';
+      var label = job ? (job.name || 'this job') : 'this job';
       if (confirm('Delete ' + label + ' from schedule?')) deleteScheduleJob(id);
     });
   });
-  listEl.querySelectorAll('.schedule-save-edit-btn').forEach(function(btn) {
-    btn.addEventListener('click', function() {
-      var id = btn.dataset.id;
-      var card = btn.closest('.schedule-edit-card');
-      if (!card) return;
-      var num = parseInt(card.querySelector('.schedule-edit-number').value, 10);
-      var name = card.querySelector('.schedule-edit-name').value;
-      var address = card.querySelector('.schedule-edit-address').value;
-      if (!name.trim()) { toast('Name is required.'); return; }
-      if (!address.trim()) { toast('Address is required.'); return; }
-      updateScheduleJob(id, { customerNumber: num, name: name, address: address });
-      scheduleEditingId = null;
-      renderCustomersList(getScheduleJobs(), filter);
-      refreshScheduleAddForm();
-      toast('Saved customer #' + (isNaN(num) ? '?' : num));
-    });
-  });
-  listEl.querySelectorAll('.schedule-cancel-edit-btn').forEach(function(btn) {
-    btn.addEventListener('click', function() {
-      scheduleEditingId = null;
-      renderCustomersList(jobs, filter);
-    });
-  });
   listEl.querySelectorAll('.schedule-mark-complete-btn').forEach(function(btn) {
-    btn.addEventListener('click', function() {
+    btn.addEventListener('click', function(e) {
+      e.stopPropagation();
       var id = btn.dataset.id;
       if (confirm('Mark this job as Complete?')) {
         markScheduleJobComplete(id);
@@ -519,57 +644,6 @@ function renderCustomersList(rows, filter) {
       }
     });
   });
-}
-
-function renderScheduleViewCard(job) {
-  var sourceTag = job.source === 'sheets'
-    ? '<span class="schedule-source-tag">Sheets</span>'
-    : '<span class="schedule-source-tag manual">Manual</span>';
-  var status = normalizeScheduleStatus(job.status);
-  var completeBtn = status !== 'complete'
-    ? '<button type="button" class="btn-sm schedule-mark-complete-btn" data-id="' + escapeHtmlC(job.id) + '">Mark Complete</button>'
-    : '';
-  return '<div class="customer-card schedule-job-card" data-id="' + escapeHtmlC(job.id) + '">' +
-    '<div class="schedule-card-top">' +
-      '<span class="schedule-customer-num">#' + escapeHtmlC(String(job.customerNumber)) + '</span>' +
-      '<div class="customer-card-name">' + escapeHtmlC(job.name || '—') + '</div>' +
-      renderScheduleStatusBadge(status) +
-      sourceTag +
-    '</div>' +
-    '<div class="customer-card-meta schedule-card-address">' +
-      '<span>' + escapeHtmlC(job.address || '—') + '</span>' +
-    '</div>' +
-    '<div class="schedule-card-actions">' +
-      '<button type="button" class="btn-sm schedule-edit-btn" data-id="' + escapeHtmlC(job.id) + '">Edit</button>' +
-      '<button type="button" class="btn-sm btn-danger-sm schedule-delete-btn" data-id="' + escapeHtmlC(job.id) + '">Delete</button>' +
-      completeBtn +
-      '<button type="button" class="btn-gold btn-sm customer-start-btn" data-id="' + escapeHtmlC(job.id) + '">Start Audit →</button>' +
-    '</div>' +
-  '</div>';
-}
-
-function renderScheduleEditCard(job) {
-  return '<div class="customer-card schedule-job-card schedule-edit-card" data-id="' + escapeHtmlC(job.id) + '">' +
-    '<div class="card-title" style="margin-bottom:8px;font-size:0.9rem;">Edit Job</div>' +
-    '<div class="schedule-add-grid">' +
-      '<div class="schedule-add-field schedule-add-number-wrap">' +
-        '<label class="schedule-field-label">Customer #</label>' +
-        '<input class="field schedule-edit-number" type="number" min="1" value="' + escapeHtmlC(String(job.customerNumber)) + '">' +
-      '</div>' +
-      '<div class="schedule-add-field schedule-add-field-grow">' +
-        '<label class="schedule-field-label">Name</label>' +
-        '<input class="field schedule-edit-name" type="text" value="' + escapeHtmlC(job.name) + '">' +
-      '</div>' +
-    '</div>' +
-    '<div class="schedule-add-field" style="margin-top:8px;">' +
-      '<label class="schedule-field-label">Address</label>' +
-      '<input class="field schedule-edit-address schedule-add-address-input" type="text" value="' + escapeHtmlC(job.address) + '">' +
-    '</div>' +
-    '<div class="schedule-card-actions" style="margin-top:10px;">' +
-      '<button type="button" class="btn-sm schedule-cancel-edit-btn" data-id="' + escapeHtmlC(job.id) + '">Cancel</button>' +
-      '<button type="button" class="btn-gold btn-sm schedule-save-edit-btn" data-id="' + escapeHtmlC(job.id) + '">Save</button>' +
-    '</div>' +
-  '</div>';
 }
 
 function _customersEscape(str) {
@@ -596,15 +670,16 @@ function startAuditFromCustomer(row) {
   S.customerNumber = row.customerNumber != null ? row.customerNumber : null;
   S.scheduleJobId = row.id || null;
   S.researchNotes = '';
-  if (row.researchOutput && row.researchForwardedAt) {
-    S.researchNotes = typeof formatResearchNotesText === 'function'
-      ? formatResearchNotesText(row.researchOutput)
-      : (row.researchOutput.summary || '');
-    if (typeof getResearchAuditFields === 'function') {
-      var auditFields = getResearchAuditFields(row.researchOutput);
-      if (auditFields.propertyType) S.propertyType = auditFields.propertyType;
-      if (auditFields.year) S.year = auditFields.year;
-      if (auditFields.sqft) S.sqft = auditFields.sqft;
+  if (typeof buildResearchOutputFromJob === 'function') {
+    var output = row.researchOutput || buildResearchOutputFromJob(row);
+    if (output && typeof formatResearchNotesText === 'function') {
+      S.researchNotes = formatResearchNotesText(output);
+      if (typeof getResearchAuditFields === 'function') {
+        var auditFields = getResearchAuditFields(output);
+        if (auditFields.propertyType) S.propertyType = auditFields.propertyType;
+        if (auditFields.year) S.year = auditFields.year;
+        if (auditFields.sqft) S.sqft = auditFields.sqft;
+      }
     }
   }
   S.auditId = null;
@@ -613,6 +688,9 @@ function startAuditFromCustomer(row) {
   S.tcSignature = null;
   if (typeof clearTCSignature === 'function') clearTCSignature();
   setScheduleJobStatus(row.id, 'in_progress', { force: true });
+  if (typeof updateScheduleJob === 'function') {
+    updateScheduleJob(row.id, { researchForwardedAt: new Date().toISOString() });
+  }
   if (typeof save       === 'function') save();
   if (typeof fillFields === 'function') fillFields();
   if (typeof renderHeader === 'function') renderHeader();
@@ -623,7 +701,7 @@ function startAuditFromCustomer(row) {
   if (typeof switchMainTab === 'function') {
     switchMainTab('audit', 'voice');
   }
-  toast('Started audit for #' + row.customerNumber + ' ' + (row.name || 'customer'));
+  toast('Started audit for ' + (row.name || 'customer'));
 }
 
 // ── GOOGLE SHEETS SETTINGS ────────────────────────────────────

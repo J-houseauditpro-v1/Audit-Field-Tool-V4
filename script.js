@@ -591,6 +591,7 @@ document.addEventListener('DOMContentLoaded', function() {
   runSafeInit('renderPhotoList', renderPhotoList);
   runSafeInit('renderAuditsList', renderAuditsList);
   runSafeInit('initTabs', initTabs);
+  runSafeInit('initCustomersTab', initCustomersTab);
   runSafeInit('initCustomerFields', initCustomerFields);
   runSafeInit('initCheatsheet', initCheatsheet);
   runSafeInit('initVoice', initVoice);
@@ -623,11 +624,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // ── TABS ─────────────────────────────────────────────────────
 var currentMainTab = 'jobs';
-var currentSubTab = { jobs: 'schedule', audit: 'voice', processing: 'interpret' };
+var currentSubTab = { audit: 'voice', processing: 'interpret' };
 var subTabsInitialized = false;
 
 var MAIN_TAB_CONFIG = {
-  jobs: { subs: ['schedule', 'research'], defaultSub: 'schedule' },
   audit: { subs: ['voice', 'tc', 'photos', 'review'], defaultSub: 'voice' },
   processing: { subs: ['interpret', 'archive', 'export'], defaultSub: 'interpret' }
 };
@@ -639,8 +639,7 @@ function isVoiceSubActive() {
 }
 
 function runSubTabInit(main, sub) {
-  if (main === 'jobs' && sub === 'schedule' && typeof initCustomersTab === 'function') initCustomersTab();
-  if (main === 'jobs' && sub === 'research' && typeof initResearchTab === 'function') initResearchTab();
+  if (main === 'jobs' && typeof initCustomersTab === 'function') initCustomersTab();
   if (main === 'audit' && sub === 'voice' && typeof renderPhotoNotesSummary === 'function') renderPhotoNotesSummary();
   if (main === 'audit' && sub === 'voice' && typeof renderResearchNotesSummary === 'function') renderResearchNotesSummary();
   if (main === 'audit' && sub === 'tc' && typeof renderTCInfo === 'function') renderTCInfo();
@@ -653,6 +652,11 @@ function runSubTabInit(main, sub) {
 
 function switchSubTab(main, sub, options) {
   options = options || {};
+  if (main === 'jobs') {
+    if (typeof initCustomersTab === 'function') initCustomersTab();
+    updateTopChromeLayout();
+    return;
+  }
   if (!MAIN_TAB_CONFIG[main]) return;
   if (sub) currentSubTab[main] = sub;
   else sub = currentSubTab[main];
@@ -691,6 +695,12 @@ function switchMainTab(mainId, subId) {
   var tabPanel = document.getElementById('tab-' + mainId);
   if (tabBtn) tabBtn.classList.add('active');
   if (tabPanel) tabPanel.style.display = 'block';
+
+  if (mainId === 'jobs') {
+    runSubTabInit('jobs');
+    updateTopChromeLayout();
+    return;
+  }
 
   if (subId) currentSubTab[mainId] = subId;
   switchSubTab(mainId, currentSubTab[mainId], { keepRecording: mainId === 'audit' && currentSubTab[mainId] === 'voice' });
