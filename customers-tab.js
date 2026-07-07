@@ -315,6 +315,7 @@ function updateScheduleJob(id, updates) {
   if (updates.auditId !== undefined) job.auditId = updates.auditId;
   if (updates.researchOutput !== undefined) job.researchOutput = updates.researchOutput;
   if (updates.researchForwardedAt !== undefined) job.researchForwardedAt = updates.researchForwardedAt;
+  if (updates.propertyType !== undefined) job.propertyType = updates.propertyType;
   if (updates.year !== undefined) job.year = updates.year;
   if (updates.sqft !== undefined) job.sqft = updates.sqft;
   if (updates.coop !== undefined) job.coop = updates.coop;
@@ -591,6 +592,7 @@ function startAuditFromCustomer(row) {
   S.coop    = row.coop    || '';
   S.year    = row.year    || '';
   S.sqft    = row.sqft    || '';
+  S.propertyType = row.propertyType || '';
   S.customerNumber = row.customerNumber != null ? row.customerNumber : null;
   S.scheduleJobId = row.id || null;
   S.researchNotes = '';
@@ -598,6 +600,12 @@ function startAuditFromCustomer(row) {
     S.researchNotes = typeof formatResearchNotesText === 'function'
       ? formatResearchNotesText(row.researchOutput)
       : (row.researchOutput.summary || '');
+    if (typeof getResearchAuditFields === 'function') {
+      var auditFields = getResearchAuditFields(row.researchOutput);
+      if (auditFields.propertyType) S.propertyType = auditFields.propertyType;
+      if (auditFields.year) S.year = auditFields.year;
+      if (auditFields.sqft) S.sqft = auditFields.sqft;
+    }
   }
   S.auditId = null;
   S.dump    = '';

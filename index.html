@@ -117,6 +117,10 @@
     </div>
     <div class="card-title" style="font-size:0.9rem;margin-top:12px;">Pre-fill for Audit</div>
     <div class="schedule-add-grid">
+      <div class="schedule-add-field schedule-add-field-grow">
+        <label class="schedule-field-label" for="research-prefill-property-type">Property Type</label>
+        <input class="field" id="research-prefill-property-type" type="text" placeholder="Property type">
+      </div>
       <div class="schedule-add-field">
         <label class="schedule-field-label" for="research-prefill-year">Year Built</label>
         <input class="field" id="research-prefill-year" type="text" inputmode="numeric">
@@ -170,9 +174,15 @@
       <input class="field" id="f-address" type="text" placeholder="Address" autocomplete="off">
     </div>
     <div class="field-row">
-      <input class="field" id="f-date" type="date">
+      <div class="date-field is-empty">
+        <input class="field" id="f-date" type="date">
+        <span class="date-field-ph">Select Date</span>
+      </div>
       <input class="field" id="f-year" type="text" inputmode="numeric" placeholder="Year built">
       <input class="field" id="f-sqft" type="text" inputmode="numeric" placeholder="Sq ft">
+    </div>
+    <div class="field-row">
+      <input class="field" id="f-property-type" type="text" placeholder="Property type" autocomplete="off">
     </div>
     <div class="field-row">
       <select class="field" id="f-coop">
@@ -369,10 +379,14 @@
         <input class="field" id="review-f-address" type="text" placeholder="Address" autocomplete="off">
       </div>
       <div class="field-row">
-        <input class="field" id="review-f-date" type="date">
+        <div class="date-field is-empty">
+          <input class="field" id="review-f-date" type="date">
+          <span class="date-field-ph">Select Date</span>
+        </div>
         <input class="field" id="review-f-year" type="text" inputmode="numeric" placeholder="Year built">
         <input class="field" id="review-f-sqft" type="text" inputmode="numeric" placeholder="Sq ft">
       </div>
+      <input class="field" id="review-f-property-type" type="text" placeholder="Property type" autocomplete="off" style="width:100%;margin-top:8px;">
       <select class="field" id="review-f-coop" style="width:100%;margin-top:8px;">
         <option value="">Select Co-op...</option>
         <option>Arkansas Valley</option>
