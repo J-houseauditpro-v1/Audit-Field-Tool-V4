@@ -94,9 +94,9 @@
 
   <section class="card">
     <div class="card-title">🔍 Research</div>
-    <div class="card-sub">Web research on each scheduled job address — review and edit results before forwarding to Audit.</div>
-    <div id="research-no-key-warn" class="tc-warn" style="display:none;">⚠️ No Research API key set — add it in Settings → Research Settings.</div>
-    <div class="card-sub" id="research-model-badge-wrap" style="margin-top:6px;display:none;">Model: <span id="research-model-badge" class="interp-model-badge">—</span></div>
+    <div class="card-sub">County assessor property lookup via RentCast — review and edit before forwarding to Audit.</div>
+    <div id="research-no-key-warn" class="tc-warn" style="display:none;">⚠️ No RentCast API key — add it in Settings → Research Settings.</div>
+    <div class="card-sub" id="research-model-badge-wrap" style="margin-top:6px;display:none;">Source: <span id="research-model-badge" class="interp-model-badge">—</span></div>
     <div class="card-title" id="research-selected-title" style="font-size:0.95rem;margin-top:10px;">Select a job from the queue below</div>
     <div class="card-sub" id="research-selected-meta"></div>
     <button type="button" class="btn-gold btn-full" id="research-run-btn" style="margin-top:12px;">🔍 Run Research</button>
@@ -644,124 +644,17 @@
 
   <section class="card more-card">
     <div class="card-title">🔍 Research Settings</div>
-    <div class="card-sub">Claude API and web search controls for the Jobs → Research tab.</div>
+    <div class="card-sub">RentCast property lookup for Jobs → Research. County assessor data: sq ft, beds, year built, tax records.</div>
 
-    <div class="card-sub" style="margin-top:10px;">API Key</div>
-    <input class="field more-field-full" id="research-api-key-input" type="password" placeholder="sk-ant-..." autocomplete="off">
+    <div class="card-sub" style="margin-top:10px;">RentCast API Key <span style="color:var(--sub);font-size:0.75rem;">(free 50/month — <a href="https://www.rentcast.io/api" target="_blank" rel="noopener" style="color:var(--gold);">rentcast.io/api</a>)</span></div>
+    <input class="field more-field-full" id="research-rentcast-key-input" type="password" placeholder="Paste RentCast API key" autocomplete="off">
     <div style="display:flex;gap:8px;margin-top:8px;">
-      <button class="btn-gold btn-full" id="research-api-key-save">Save Key</button>
-      <button class="btn-sm" id="research-test-btn">Test</button>
+      <button class="btn-gold btn-full" id="research-rentcast-key-save">Save Key</button>
+      <button class="btn-sm" id="research-rentcast-test-btn">Test</button>
     </div>
-    <div id="research-test-result" style="font-size:0.8rem;margin-top:6px;display:none;"></div>
-
-    <div style="border-top:1px solid var(--border);margin-top:14px;padding-top:14px;">
-      <div class="card-sub" style="font-weight:600;margin-bottom:4px;">Property Data (RentCast)</div>
-      <div class="card-sub">Sq ft, beds, year built from county assessor records. Required for reliable property data — Claude cannot scrape Zillow.</div>
-      <label class="research-source-check" style="margin-top:6px;">
-        <input type="checkbox" id="research-enable-rentcast" checked>
-        Look up assessor record before Claude runs
-      </label>
-      <div class="card-sub" style="margin-top:8px;">RentCast API Key <span style="color:var(--sub);font-size:0.75rem;">(free: 50 lookups/month at rentcast.io/api)</span></div>
-      <input class="field more-field-full" id="research-rentcast-key-input" type="password" placeholder="Paste RentCast API key" autocomplete="off">
-    </div>
-
-    <div class="card-sub" style="margin-top:14px;">Model</div>
-    <select class="field more-field-full" id="research-model-select">
-      <option value="claude-sonnet-5">claude-sonnet-5 (recommended)</option>
-      <option value="claude-sonnet-4-6">claude-sonnet-4-6</option>
-      <option value="claude-haiku-4-5-20251001">claude-haiku-4-5 (fast / test)</option>
-    </select>
-
-    <div class="card-sub" style="margin-top:14px;">Thinking Effort</div>
-    <select class="field more-field-full" id="research-effort-select">
-      <option value="">Off (no thinking, faster)</option>
-      <option value="low">Low</option>
-      <option value="medium" selected>Medium (recommended)</option>
-      <option value="high">High</option>
-      <option value="max">Max</option>
-    </select>
-
-    <div class="card-sub" style="margin-top:14px;">Temperature <span style="color:var(--sub);font-size:0.75rem;">(used when thinking is off)</span></div>
-    <select class="field more-field-full" id="research-temperature-select">
-      <option value="0" selected>0 — deterministic</option>
-      <option value="0.3">0.3</option>
-      <option value="0.5">0.5</option>
-      <option value="0.7">0.7</option>
-      <option value="1">1</option>
-    </select>
-
-    <div class="card-sub" style="margin-top:14px;">Max Tokens</div>
-    <select class="field more-field-full" id="research-max-tokens-select">
-      <option value="2048">2048</option>
-      <option value="4096" selected>4096</option>
-      <option value="8192">8192</option>
-      <option value="12288">12288</option>
-    </select>
-
-    <div style="border-top:1px solid var(--border);margin-top:14px;padding-top:14px;">
-      <div class="card-sub" style="font-weight:600;margin-bottom:4px;">Web Search</div>
-      <div class="card-sub">Where and how Claude searches before each property research run.</div>
-
-      <div class="card-sub" style="margin-top:10px;">Search Tool</div>
-      <select class="field more-field-full" id="research-search-tool-select">
-        <option value="web_search_20250305">Basic web search</option>
-        <option value="web_search_20260209" selected>Dynamic filtering (newer, more accurate)</option>
-      </select>
-
-      <div class="card-sub" style="margin-top:10px;">Search Strategy</div>
-      <select class="field more-field-full" id="research-search-strategy-select">
-        <option value="quick">Quick — 1–2 targeted searches</option>
-        <option value="balanced">Balanced — progressive searches as needed</option>
-        <option value="thorough" selected>Thorough — cross-reference multiple sources</option>
-      </select>
-
-      <div class="card-sub" style="margin-top:10px;">Max Searches per Run</div>
-      <select class="field more-field-full" id="research-max-searches-select">
-        <option value="2">2</option>
-        <option value="3">3</option>
-        <option value="5">5</option>
-        <option value="8" selected>8</option>
-        <option value="10">10</option>
-      </select>
-
-      <div class="card-sub" style="margin-top:14px;font-weight:600;">Web Fetch <span style="color:var(--sub);font-size:0.75rem;">(opens Zillow/assessor pages found in search)</span></div>
-      <label class="research-source-check" style="margin-top:6px;">
-        <input type="checkbox" id="research-enable-web-fetch" checked>
-        Enable web fetch — required for full Zillow/Redfin page data
-      </label>
-      <div class="card-sub" style="margin-top:8px;">Max Page Fetches per Run</div>
-      <select class="field more-field-full" id="research-max-fetches-select">
-        <option value="3">3</option>
-        <option value="5">5</option>
-        <option value="8" selected>8</option>
-      </select>
-      <div class="card-sub" style="margin-top:8px;">Fetch Tool</div>
-      <select class="field more-field-full" id="research-fetch-tool-select">
-        <option value="web_fetch_20250910">Basic fetch</option>
-        <option value="web_fetch_20260209" selected>Dynamic filtering (recommended)</option>
-      </select>
-      <div class="card-sub" style="margin-top:6px;color:var(--sub);font-size:0.72rem;">
-        Claude web search uses Brave (not Google). Zillow and ARCountyData block bots — use RentCast above for sq ft/year.
-      </div>
-
-      <div class="card-sub" style="margin-top:10px;">Source Types to Prioritize</div>
-      <div class="research-source-checks">
-        <label class="research-source-check"><input type="checkbox" id="research-src-real-estate" checked> Real estate (Zillow, Redfin, Realtor.com)</label>
-        <label class="research-source-check"><input type="checkbox" id="research-src-assessor" checked> County assessor / property records</label>
-        <label class="research-source-check"><input type="checkbox" id="research-src-maps" checked> Maps / satellite (Google Maps, etc.)</label>
-        <label class="research-source-check"><input type="checkbox" id="research-src-utility" checked> Electric co-op / utility sites</label>
-        <label class="research-source-check"><input type="checkbox" id="research-src-general" checked> General web fallback</label>
-      </div>
-
-      <div class="card-sub" style="margin-top:10px;">Preferred Domains <span style="color:var(--sub);font-size:0.75rem;">(search priority only — do not add realtor.com)</span></div>
-      <textarea class="voice-area more-field-full" id="research-domains-textarea" style="height:80px;font-size:0.72rem;" placeholder="zillow.com&#10;redfin.com&#10;arcountydata.com&#10;google.com"></textarea>
-
-      <div class="card-sub" style="margin-top:10px;">Research Instructions <span style="color:var(--sub);font-size:0.75rem;">(custom rules for every research run)</span></div>
-      <textarea class="voice-area more-field-full" id="research-instructions-textarea" style="height:140px;font-size:0.72rem;" placeholder="Loading..."></textarea>
-      <div style="display:flex;gap:8px;margin-top:8px;">
-        <button class="btn-gold btn-full" id="research-settings-save">Save Research Settings</button>
-        <button class="btn-sm" id="research-instructions-reset">Reset Instructions</button>
-      </div>
+    <div id="research-rentcast-test-result" style="font-size:0.8rem;margin-top:6px;display:none;"></div>
+    <div class="card-sub" style="margin-top:10px;color:var(--sub);font-size:0.72rem;">
+      Address on Schedule should include city, state, zip — e.g. <b>11006 Maple Park Dr, Fort Smith, AR 72916</b>
     </div>
   </section>
 
