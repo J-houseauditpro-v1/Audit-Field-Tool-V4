@@ -338,7 +338,6 @@
   <div class="main-subnav" id="subnav-processing">
     <button type="button" class="sub-pill active" data-main="processing" data-sub="interpret">Interpret</button>
     <button type="button" class="sub-pill" data-main="processing" data-sub="archive">Archive</button>
-    <button type="button" class="sub-pill" data-main="processing" data-sub="export">Export</button>
   </div>
 
 <!-- ======================== INTERPRET SUB-TAB ======================== -->
@@ -426,12 +425,18 @@
 <div id="tab-archive" class="main-subpanel" style="display:none">
 
   <section class="card">
-    <div class="row-between" style="margin-bottom:10px;">
-      <div class="card-title" style="margin-bottom:0;">Archive</div>
-      <button class="btn-gold btn-sm" id="save-btn">Save Current Audit</button>
-    </div>
+    <div class="card-title" style="margin-bottom:10px;">Archive</div>
     <input class="field" id="archive-search" type="search" placeholder="Search by name, address, date, co-op…" style="width:100%;">
     <div id="audits-list"><div class="empty-msg">No saved audits yet</div></div>
+  </section>
+
+  <section class="card" id="archive-full-backup-section" style="display:none;">
+    <button type="button" class="cheat-toggle" id="archive-full-backup-toggle">💾 Full device backup <span id="archive-full-backup-arrow">▼</span></button>
+    <div class="cheat-body" id="archive-full-backup-body">
+      <div class="card-sub" style="margin-top:6px;">Large files — grows with every photo. Use <b>Weekly Backup</b> above for routine safety. Full backup is for occasional off-device copies.</div>
+      <button type="button" class="btn-outline btn-full" id="export-full-both-btn" style="margin-top:8px;">💾 Backup + Export (2 zips)</button>
+      <div class="pdf-progress" id="export-full-both-progress">Building backup...</div>
+    </div>
   </section>
 
   <section class="card">
@@ -463,23 +468,6 @@
   </section>
 
 </div><!-- /tab-archive -->
-
-<!-- ======================== EXPORT SUB-TAB ======================== -->
-<div id="tab-export" class="main-subpanel" style="display:none">
-
-  <div id="export-full-backup-section" style="display:none;">
-    <section class="card export-full-backup-card">
-      <div class="card-sub">One tap builds <b>two zip files</b> in sequence: <b>AFT_Full_Backup.zip</b> (restore into the app) and <b>AFT_Full_Export.zip</b> (photos &amp; PDFs). Save both to the same folder in Files — tap Replace when asked to overwrite your previous backup.</div>
-      <button type="button" class="btn-gold btn-full" id="export-full-both-btn" style="margin-top:8px;">💾 Backup + Export</button>
-      <div class="pdf-progress" id="export-full-both-progress">Building backup...</div>
-    </section>
-  </div>
-
-  <div id="weekly-batches-container">
-    <!-- Rendered by JS -->
-  </div>
-
-</div><!-- /tab-export -->
 
 </div><!-- /tab-processing -->
 

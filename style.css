@@ -2268,38 +2268,80 @@ body.modal-open {
 #audits-list .archive-audit-row {
   flex-direction: column;
   align-items: stretch;
-  padding: 10px 12px;
-  gap: 8px;
+  padding: 8px 12px;
+  gap: 4px;
 }
-#audits-list .archive-audit-info {
+.archive-audit-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   width: 100%;
   min-width: 0;
 }
 #audits-list .archive-audit-name {
-  white-space: normal;
-  word-break: break-word;
-  overflow: visible;
-  text-overflow: unset;
-  font-size: 0.9rem;
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 0.88rem;
   font-weight: 600;
-  line-height: 1.3;
+  line-height: 1.25;
 }
 #audits-list .archive-audit-row.is-current .archive-audit-name {
   color: var(--gold);
 }
-#audits-list .archive-audit-meta {
-  font-size: 0.75rem;
-  margin-top: 3px;
-  line-height: 1.35;
+.archive-audit-indicators {
+  width: 100%;
+  min-width: 0;
+  line-height: 1.2;
+}
+.archive-audit-indicators .export-row-meta {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+#audits-list .export-meta-date {
   color: var(--sub);
-  white-space: normal;
+  flex-shrink: 0;
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+#audits-list .export-meta-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+  flex-shrink: 0;
+  font-size: 0.62rem;
+  line-height: 1;
+}
+#audits-list .export-meta-aa {
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--sub);
+}
+#audits-list .sig-indicator { font-size: 0.55rem; vertical-align: middle; }
+#audits-list .week-batch-btns .btn-gold {
+  padding: 8px 12px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  flex: 1;
+  min-width: 0;
 }
 .archive-action-select {
-  width: 100%;
-  flex: none;
-  min-width: 0;
-  margin-top: 2px;
+  width: auto;
+  min-width: 92px;
+  max-width: 104px;
+  flex-shrink: 0;
+  padding: 8px 4px;
+  font-size: 0.72rem;
   cursor: pointer;
+}
+#audits-list .week-batch-btns {
+  padding: 8px 12px;
+  gap: 6px;
 }
 .archive-audit-btns {
   flex-wrap: wrap;
