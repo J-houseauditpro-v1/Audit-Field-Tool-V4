@@ -1990,66 +1990,100 @@ body.modal-open {
   grid-column: 1 / -1;
 }
 #customers-list .week-group {
-  margin-bottom: 6px;
+  margin-bottom: 4px;
 }
 #customers-list .week-group:last-child {
   margin-bottom: 0;
 }
 #customers-list .week-group-header {
-  padding: 6px 10px;
+  padding: 4px 8px;
 }
 #customers-list .week-group-title {
-  font-size: 0.86rem;
-  line-height: 1.15;
+  font-size: 0.84rem;
+  line-height: 1;
 }
 #customers-list .week-group-count {
-  font-size: 0.72rem;
+  font-size: 0.7rem;
+  line-height: 1;
 }
 #customers-list .day-group {
-  margin-top: 3px;
+  margin-top: 2px;
   margin-bottom: 0;
-  padding-left: 8px;
+  padding-left: 6px;
+}
+#customers-list .week-group > .day-group:first-child {
+  margin-top: 0;
 }
 #customers-list .day-group-header {
-  padding: 1px 0 0;
-  margin-bottom: 0;
+  padding: 0;
+  margin: 0;
+  line-height: 1;
 }
 #customers-list .day-group-title {
-  font-size: 0.72rem;
-  line-height: 1.1;
+  font-size: 0.7rem;
+  line-height: 1;
 }
 #customers-list .day-group-count {
-  font-size: 0.66rem;
+  font-size: 0.64rem;
+  line-height: 1;
 }
 #customers-list .week-audit-row,
 #customers-list .schedule-queue-row {
-  padding: 2px 10px;
+  padding: 0 8px;
+  gap: 0;
+  align-items: stretch;
+  min-height: 0;
 }
-#customers-list .schedule-queue-name {
-  font-size: 0.84rem;
-  line-height: 1.1;
-}
-#customers-list .schedule-queue-address {
-  margin-top: 0;
-  font-size: 0.66rem;
-  line-height: 1.1;
+#customers-list .schedule-queue-info {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-rows: auto auto;
+  column-gap: 6px;
+  row-gap: 0;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
 }
 #customers-list .schedule-queue-top {
-  gap: 6px;
+  display: contents;
+}
+#customers-list .schedule-queue-name {
+  grid-column: 1;
+  grid-row: 1;
+  font-size: 0.82rem;
+  line-height: 1.05;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+#customers-list .schedule-queue-address {
+  grid-column: 1;
+  grid-row: 2;
+  margin-top: 0;
+  font-size: 0.64rem;
+  line-height: 1.05;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 #customers-list .schedule-row-actions {
-  gap: 4px;
+  grid-column: 2;
+  grid-row: 1;
+  gap: 3px;
+  align-self: center;
 }
 #customers-list .schedule-icon-btn {
-  min-width: 28px;
-  min-height: 28px;
-  padding: 3px 5px;
-  font-size: 0.82rem;
+  min-width: 26px;
+  min-height: 26px;
+  padding: 2px 4px;
+  font-size: 0.78rem;
 }
 #customers-list .schedule-queue-row .customer-start-btn {
-  padding: 3px 7px;
-  font-size: 0.66rem;
-  line-height: 1.1;
+  padding: 2px 6px;
+  font-size: 0.64rem;
+  line-height: 1;
   white-space: nowrap;
 }
 .schedule-queue-row {
