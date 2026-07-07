@@ -2081,10 +2081,16 @@ body.modal-open {
   font-size: 0.9rem;
 }
 #customers-list .schedule-queue-row .customer-start-btn {
-  min-height: 34px;
-  padding: 5px 10px;
-  font-size: 0.72rem;
-  line-height: 1.1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  min-height: 36px;
+  height: 36px;
+  min-width: 78px;
+  padding: 0 16px;
+  font-size: 0.76rem;
+  line-height: 1;
   white-space: nowrap;
 }
 .schedule-queue-row {
