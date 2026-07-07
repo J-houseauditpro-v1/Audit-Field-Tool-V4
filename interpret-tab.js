@@ -855,10 +855,10 @@ function updateInterpSaveStatus(saved) {
   var el = document.getElementById('interp-save-status');
   if (!el) return;
   if (saved && !interpretDirty) {
-    el.textContent = '✓ Interpretation saved with this audit';
+    el.textContent = '✓ Interpretation auto-saved with this audit';
     el.classList.remove('unsaved');
   } else if (interpretLastParsed) {
-    el.textContent = '● Unsaved changes — tap Save Interpretation';
+    el.textContent = 'Saving interpretation…';
     el.classList.add('unsaved');
   } else {
     el.textContent = 'No interpretation saved for this audit yet';
@@ -1060,17 +1060,6 @@ function wireInterpretButtons() {
     runBtn.addEventListener('click', runInterpret);
   }
 
-  var saveBtn = document.getElementById('interp-save-btn');
-  if (saveBtn) {
-    saveBtn.addEventListener('click', function() {
-      if (interpretLastParsed) {
-        saveInterpretation(interpretLastParsed);
-      } else {
-        toast('No interpretation to save yet.');
-      }
-    });
-  }
-
   var jfSubmitBtn = document.getElementById('interp-jotform-submit-btn');
   if (jfSubmitBtn) {
     jfSubmitBtn.addEventListener('click', runJotFormSubmit);
@@ -1213,8 +1202,7 @@ function runInterpret() {
     if (typeof persistAuditRecord === 'function' && (S.name || S.dump || (S.photos && S.photos.length))) {
       persistAuditRecord();
     }
-    persistInterpretationToAudit({ silent: true, message: 'Interpretation saved to audit record.' });
-    if (typeof toast === 'function') toast('Interpretation complete and saved to audit.');
+    persistInterpretationToAudit({ silent: true });
   })
   .catch(function(err) {
     toast('Interpret error: ' + err.message);
@@ -1525,15 +1513,23 @@ function renderInterpretFlags(parsed) {
 // ── SAVE INTERPRETATION ───────────────────────────────────────
 function persistInterpretationToAudit(options) {
   options = options || {};
-  if (typeof S === 'undefined' || !S.auditId || !interpretLastParsed) {
+  if (typeof S === 'undefined' || !interpretLastParsed) {
     if (!options.silent) toast('No active audit or interpretation to save.');
     return false;
   }
   try {
+    if (!S.auditId && typeof persistAuditRecord === 'function' && (S.name || S.dump || (S.photos && S.photos.length))) {
+      persistAuditRecord();
+    }
     var saved = typeof getSaved === 'function' ? getSaved() : JSON.parse(localStorage.getItem('aft_saved') || '[]');
-    var idx = saved.findIndex(function(a) { return a.id === S.auditId; });
+    var idx = S.auditId ? saved.findIndex(function(a) { return a.id === S.auditId; }) : -1;
+    if (idx < 0 && typeof persistAuditRecord === 'function') {
+      persistAuditRecord();
+      saved = typeof getSaved === 'function' ? getSaved() : JSON.parse(localStorage.getItem('aft_saved') || '[]');
+      idx = S.auditId ? saved.findIndex(function(a) { return a.id === S.auditId; }) : -1;
+    }
     if (idx < 0) {
-      if (!options.silent) toast('Audit not saved yet — save it first.');
+      if (!options.silent) toast('Audit not in archive yet — add audit data first.');
       return false;
     }
     saved[idx].interpretedOutput = {
@@ -1555,7 +1551,11 @@ function persistInterpretationToAudit(options) {
       syncScheduleStatusFromAudit(S.auditId, 'interpreted', { scheduleJobId: S.scheduleJobId });
     }
     if (typeof renderHeader === 'function') renderHeader();
-    if (!options.silent) toast(options.message || 'Interpretation saved to audit record.');
+    if (!options.silent) {
+      toast(options.message || 'Interpretation saved to audit record.');
+    } else if (!options.skipIndicator && typeof showAutosaveIndicator === 'function') {
+      showAutosaveIndicator();
+    }
     return true;
   } catch(e) {
     if (!options.silent) toast('Save error: ' + e.message);

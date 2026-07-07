@@ -592,24 +592,14 @@ function renderCustomersList(rows, filter) {
 }
 
 function renderScheduleQueueRow(job) {
-  var status = normalizeScheduleStatus(job.status);
-  var sourceTag = job.source === 'sheets'
-    ? '<span class="schedule-source-tag">Sheets</span>'
-    : '<span class="schedule-source-tag manual">Manual</span>';
-  var completeClass = status === 'complete' ? 'schedule-icon-btn is-complete' : 'schedule-icon-btn';
   return '<div class="schedule-queue-row week-audit-row" data-id="' + escapeHtmlC(job.id) + '">' +
-    '<div class="week-audit-info">' +
+    '<div class="week-audit-info schedule-queue-info">' +
       '<div class="week-audit-name schedule-queue-name">' + escapeHtmlC(formatScheduleJobDisplayName(job)) + '</div>' +
       '<div class="schedule-queue-address">' + escapeHtmlC(job.address || '—') + '</div>' +
-      '<div class="week-audit-meta schedule-queue-meta">' +
-        renderScheduleStatusBadge(status) +
-        sourceTag +
-      '</div>' +
     '</div>' +
     '<div class="schedule-row-actions">' +
       '<button type="button" class="schedule-icon-btn schedule-edit-btn" data-id="' + escapeHtmlC(job.id) + '" title="Edit" aria-label="Edit">✏️</button>' +
       '<button type="button" class="schedule-icon-btn schedule-delete-btn" data-id="' + escapeHtmlC(job.id) + '" title="Delete" aria-label="Delete">🗑</button>' +
-      '<button type="button" class="' + completeClass + ' schedule-mark-complete-btn" data-id="' + escapeHtmlC(job.id) + '" title="Mark complete" aria-label="Mark complete"' + (status === 'complete' ? ' disabled' : '') + '>✓</button>' +
       '<button type="button" class="btn-xs-gold customer-start-btn" data-id="' + escapeHtmlC(job.id) + '">Start →</button>' +
     '</div>' +
   '</div>';
@@ -640,17 +630,6 @@ function wireScheduleQueueActions(jobs, filter) {
       var job = jobs.find(function(j) { return j.id === id; });
       var label = job ? (job.name || 'this job') : 'this job';
       if (confirm('Delete ' + label + ' from schedule?')) deleteScheduleJob(id);
-    });
-  });
-  listEl.querySelectorAll('.schedule-mark-complete-btn').forEach(function(btn) {
-    btn.addEventListener('click', function(e) {
-      e.stopPropagation();
-      var id = btn.dataset.id;
-      if (confirm('Mark this job as Complete?')) {
-        markScheduleJobComplete(id);
-        renderCustomersList(getScheduleJobs(), filter);
-        toast('Job marked Complete');
-      }
     });
   });
 }

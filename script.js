@@ -2773,6 +2773,9 @@ function initV2V3Import() {
 // record the manual Save button writes, so nothing is ever lost to a crash,
 // a dropped signal, or forgetting to tap Save.
 function autosaveAudit() {
+  if (typeof persistInterpretationToAudit === 'function' && typeof interpretLastParsed !== 'undefined' && interpretLastParsed) {
+    persistInterpretationToAudit({ silent: true, skipIndicator: true });
+  }
   if (!S.name && !S.dump && !S.photos.length) return;
   persistAuditRecord();
   showAutosaveIndicator();
@@ -3009,24 +3012,24 @@ function renderAuditsListRow(a) {
   var name = a.customer.name || 'Unnamed';
   var metaLine = formatExportRowMeta(a);
   return '<div class="week-audit-row archive-audit-row' + (a.id === S.auditId ? ' is-current' : '') + '">' +
-    '<div class="archive-audit-top">' +
+    '<div class="archive-audit-left">' +
       '<div class="archive-audit-name">' + escapeHtml(name) + '</div>' +
-      '<div class="archive-audit-quick-btns">' +
-        '<button type="button" class="archive-icon-btn archive-view-btn" data-id="' + a.id + '" title="View details" aria-label="View details">🔍</button>' +
-        '<button type="button" class="archive-icon-btn archive-export-zip-btn" data-id="' + a.id + '" title="Full export zip" aria-label="Full export zip">📁</button>' +
-        '<select class="field archive-action-select archive-icon-select" data-id="' + a.id + '" aria-label="Audit actions">' +
-          '<option value="">▼</option>' +
-          '<option value="load">Load audit</option>' +
-          '<option value="json">Export JSON</option>' +
-          '<option value="pdf">Photo PDF</option>' +
-          '<option value="tc">T&amp;C PDF</option>' +
-          '<option value="photos">Photos ZIP</option>' +
-          '<option value="text">Text summary</option>' +
-          '<option value="delete">Delete audit</option>' +
-        '</select>' +
-      '</div>' +
+      '<div class="archive-audit-indicators">' + metaLine + '</div>' +
     '</div>' +
-    '<div class="archive-audit-indicators">' + metaLine + '</div>' +
+    '<div class="archive-audit-quick-btns">' +
+      '<button type="button" class="archive-icon-btn archive-view-btn" data-id="' + a.id + '" title="View details" aria-label="View details">🔍</button>' +
+      '<button type="button" class="archive-icon-btn archive-export-zip-btn" data-id="' + a.id + '" title="Full export zip" aria-label="Full export zip">📁</button>' +
+      '<select class="field archive-action-select archive-icon-select" data-id="' + a.id + '" aria-label="Audit actions">' +
+        '<option value="">▼</option>' +
+        '<option value="load">Load audit</option>' +
+        '<option value="json">Export JSON</option>' +
+        '<option value="pdf">Photo PDF</option>' +
+        '<option value="tc">T&amp;C PDF</option>' +
+        '<option value="photos">Photos ZIP</option>' +
+        '<option value="text">Text summary</option>' +
+        '<option value="delete">Delete audit</option>' +
+      '</select>' +
+    '</div>' +
   '</div>';
 }
 
