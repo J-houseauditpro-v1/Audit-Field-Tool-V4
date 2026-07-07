@@ -2040,7 +2040,7 @@ body.modal-open {
   grid-template-rows: auto auto;
   column-gap: 6px;
   row-gap: 0;
-  align-items: center;
+  align-items: start;
   width: 100%;
   min-width: 0;
 }
@@ -2051,7 +2051,8 @@ body.modal-open {
   grid-column: 1;
   grid-row: 1;
   font-size: 0.82rem;
-  line-height: 1.05;
+  line-height: 1;
+  margin: 0;
   min-width: 0;
   white-space: nowrap;
   overflow: hidden;
@@ -2060,9 +2061,9 @@ body.modal-open {
 #customers-list .schedule-queue-address {
   grid-column: 1;
   grid-row: 2;
-  margin-top: 0;
+  margin: -1px 0 0;
   font-size: 0.64rem;
-  line-height: 1.05;
+  line-height: 1;
   min-width: 0;
   white-space: nowrap;
   overflow: hidden;
@@ -2070,7 +2071,7 @@ body.modal-open {
 }
 #customers-list .schedule-row-actions {
   grid-column: 2;
-  grid-row: 1;
+  grid-row: 1 / 3;
   gap: 7px;
   align-self: center;
 }
