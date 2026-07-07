@@ -654,6 +654,17 @@
     </div>
     <div id="research-test-result" style="font-size:0.8rem;margin-top:6px;display:none;"></div>
 
+    <div style="border-top:1px solid var(--border);margin-top:14px;padding-top:14px;">
+      <div class="card-sub" style="font-weight:600;margin-bottom:4px;">Property Data (RentCast)</div>
+      <div class="card-sub">Sq ft, beds, year built from county assessor records. Required for reliable property data — Claude cannot scrape Zillow.</div>
+      <label class="research-source-check" style="margin-top:6px;">
+        <input type="checkbox" id="research-enable-rentcast" checked>
+        Look up assessor record before Claude runs
+      </label>
+      <div class="card-sub" style="margin-top:8px;">RentCast API Key <span style="color:var(--sub);font-size:0.75rem;">(free: 50 lookups/month at rentcast.io/api)</span></div>
+      <input class="field more-field-full" id="research-rentcast-key-input" type="password" placeholder="Paste RentCast API key" autocomplete="off">
+    </div>
+
     <div class="card-sub" style="margin-top:14px;">Model</div>
     <select class="field more-field-full" id="research-model-select">
       <option value="claude-sonnet-5">claude-sonnet-5 (recommended)</option>
@@ -730,7 +741,7 @@
         <option value="web_fetch_20260209" selected>Dynamic filtering (recommended)</option>
       </select>
       <div class="card-sub" style="margin-top:6px;color:var(--sub);font-size:0.72rem;">
-        Tip: Google search snippets often have Zillow sq ft even when Zillow pages block fetch. Research now searches Google first, then fetches direct Zillow URLs.
+        Claude web search uses Brave (not Google). Zillow and ARCountyData block bots — use RentCast above for sq ft/year.
       </div>
 
       <div class="card-sub" style="margin-top:10px;">Source Types to Prioritize</div>

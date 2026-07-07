@@ -9,20 +9,14 @@ var RESEARCH_CONFIDENCE_ORDER = { high: 0, medium: 1, low: 2 };
 var researchSettingsWired = false;
 
 var RESEARCH_INSTRUCTIONS_BUNDLED =
-  'PROPERTY RESEARCH WORKFLOW (follow in order):\n' +
-  '1. GOOGLE ADDRESS SEARCH FIRST — Search the full address in quotes (e.g. "11006 Maple Park Dr, Fort Smith, AR 72916"). Google\'s #1 result is usually Zillow with sq ft, beds, baths, and value IN THE SNIPPET. Extract that data as HIGH confidence (source: Zillow via Google snippet). Also search: {street #} {street name} {city} zillow\n' +
-  '2. DIRECT ZILLOW URL — web_fetch the homedetails URL from the research plan (provided in prompt). Extract beds, baths, sq ft, year built, property type.\n' +
-  '3. ZILLOW HOMEDETAILS SEARCH — Search: site:zillow.com/homedetails {street #} "{street name}" {city}\n' +
-  '4. REDFIN BACKUP — Search: site:redfin.com {full address} and web_fetch any /home/ URL found.\n' +
-  '5. ARKANSAS ASSESSOR — For AR addresses, search arcountydata.com for the county in the plan. Use street # + street name (no Dr/St suffix).\n' +
-  '6. MAPS CONTEXT — Text-only clues from Google Maps search results (no satellite/Street View).\n' +
-  '7. CO-OP — Electric co-op from zip/city.\n' +
-  'CRITICAL: Never report "no Zillow record" if Google snippet or any search shows sq ft/beds for THIS exact street number.\n' +
-  'Do NOT use neighboring addresses for subject property sq ft or year built — only comparables as a separate finding.\n' +
-  'Mark high when Zillow snippet/page/assessor agree; medium for Google snippet alone; low for inference only.\n' +
+  'HYBRID RESEARCH WORKFLOW:\n' +
+  '1. PROPERTY RECORD — If a VERIFIED PROPERTY RECORD block is provided (RentCast/assessor), use those sq ft, beds, baths, and year built as HIGH confidence. Do NOT contradict or replace them with web search.\n' +
+  '2. CLAUDE WEB SEARCH — Use for electric co-op, neighborhood context, subdivision notes, and general field verification items only.\n' +
+  '3. Do NOT rely on Zillow/Redfin web_fetch — those sites block automated access. Do not report "no Zillow record" if assessor data was provided.\n' +
+  '4. MAPS — Text clues only from search results (no satellite/Street View).\n' +
   'Never include or search for customer name — address and customer # only.';
 
-var RESEARCH_INSTRUCTIONS_VERSION = 2;
+var RESEARCH_INSTRUCTIONS_VERSION = 3;
 
 var RESEARCH_DOMAINS_DEFAULT =
   'zillow.com\n' +
@@ -117,6 +111,21 @@ function getResearchFetchTool() {
   try { return localStorage.getItem('aft_research_fetch_tool') || 'web_fetch_20260209'; } catch(e) { return 'web_fetch_20260209'; }
 }
 function setResearchFetchTool(v) { try { localStorage.setItem('aft_research_fetch_tool', v); } catch(e) {} }
+function getResearchRentcastApiKey() {
+  try { return localStorage.getItem('aft_research_rentcast_api_key') || ''; } catch(e) { return ''; }
+}
+function setResearchRentcastApiKey(key) {
+  try { if (key) localStorage.setItem('aft_research_rentcast_api_key', key); else localStorage.removeItem('aft_research_rentcast_api_key'); } catch(e) {}
+}
+function getResearchEnableRentcast() {
+  try {
+    var v = localStorage.getItem('aft_research_enable_rentcast');
+    return v === null ? true : v === '1';
+  } catch(e) { return true; }
+}
+function setResearchEnableRentcast(on) {
+  try { localStorage.setItem('aft_research_enable_rentcast', on ? '1' : '0'); } catch(e) {}
+}
 function getResearchSearchSources() {
   var defaults = { real_estate: true, assessor: true, maps: true, utility: true, general: true };
   try {
@@ -277,48 +286,114 @@ function buildResearchSearchQueries(parsed, rawAddress) {
   return queries.filter(function(q, i, arr) { return q.trim() && arr.indexOf(q) === i; });
 }
 
-function buildResearchAddressPlan(payload) {
+function buildResearchAddressPlan(payload, hasRentcastRecord) {
   var parsed = parseResearchAddress(payload.address);
-  var directUrls = buildResearchDirectUrls(parsed);
-  var searchQueries = buildResearchSearchQueries(parsed, payload.address);
-  var lines = ['MANDATORY RESEARCH PLAN (execute in this exact order):', ''];
-  lines.push('Parsed address components:');
-  lines.push('- Full: ' + (parsed.raw || payload.address));
-  if (parsed.streetNumber) lines.push('- Street #: ' + parsed.streetNumber);
-  if (parsed.streetName) lines.push('- Street name for assessor (no suffix): ' + parsed.streetName);
-  if (parsed.streetSuffix) lines.push('- Street suffix: ' + parsed.streetSuffix);
-  if (parsed.city) lines.push('- City: ' + parsed.city);
-  if (parsed.state) lines.push('- State: ' + parsed.state);
-  if (parsed.zip) lines.push('- Zip: ' + parsed.zip);
-  if (parsed.county) lines.push('- Arkansas county: ' + parsed.county);
+  var lines = ['RESEARCH PLAN:', ''];
+  lines.push('Parsed address: ' + (parsed.raw || payload.address));
+  if (parsed.county) lines.push('Arkansas county: ' + parsed.county);
   lines.push('');
-  lines.push('Step 1 — GOOGLE/ZILLOW SNIPPET (do this FIRST):');
-  searchQueries.slice(0, 2).forEach(function(q, i) {
-    lines.push('  Search ' + (i + 1) + ': ' + q);
-  });
-  lines.push('Google result #1 is usually Zillow with sq ft, beds, baths, and value in the snippet text.');
-  lines.push('If snippet shows data for street #' + (parsed.streetNumber || '?') + ', record as HIGH confidence (source: Zillow via Google snippet).');
-  lines.push('');
-  if (getResearchEnableWebFetch() && directUrls.length) {
-    lines.push('Step 2 — DIRECT URL FETCH (web_fetch each URL below before broad searching):');
-    directUrls.forEach(function(url) { lines.push('  ' + url); });
-    lines.push('If fetch fails, rely on Step 1 snippet data — do NOT report "not found" if snippet had sq ft.');
-    lines.push('');
+  if (hasRentcastRecord) {
+    lines.push('Property sq ft / beds / year built are ALREADY VERIFIED above — do not re-search Zillow for those.');
+    lines.push('Step 1 — ELECTRIC CO-OP: utility/co-op serving zip ' + (parsed.zip || '?') + (parsed.city ? ' / ' + parsed.city : ''));
+    lines.push('Step 2 — NEIGHBORHOOD: subdivision and area context for field auditor');
+    lines.push('Step 3 — MAPS (text only): any written clues about pool, solar, lot features');
+    return lines.join('\n');
   }
-  lines.push('Step 3 — ZILLOW HOMEDETAILS SEARCH: ' + (searchQueries[2] || ('site:zillow.com ' + parsed.raw)));
-  lines.push('Step 4 — REDFIN: ' + (searchQueries[3] || ('site:redfin.com ' + parsed.raw)));
-  if (parsed.state === 'AR' && parsed.county) {
-    lines.push('Step 5 — AR COUNTY ASSESSOR: site:arcountydata.com ' + parsed.county + ' ' + parsed.streetNumber + ' ' + parsed.streetName);
-    lines.push('  Assessor form: Street #=' + (parsed.streetNumber || '?') + ', Street Name=' + (parsed.streetName || '?') + ' (no suffix), City=' + (parsed.city || '?') + '.');
-  } else if (parsed.state === 'AR') {
-    lines.push('Step 5 — AR COUNTY ASSESSOR: site:arcountydata.com ' + parsed.streetNumber + ' ' + parsed.streetName);
-  }
-  lines.push('Step 6 — MAPS (text only): "' + parsed.raw + '" google maps');
-  if (parsed.zip) lines.push('Step 7 — ELECTRIC CO-OP: utility serving zip ' + parsed.zip + (parsed.city ? ' / ' + parsed.city : '') + '.');
-  lines.push('');
-  lines.push('FORBIDDEN: Saying "no direct Zillow record" when Google snippet shows this address.');
-  lines.push('FORBIDDEN: Using neighboring house sq ft/year as the subject property value.');
+  lines.push('No assessor record was found — search for co-op and neighborhood context only.');
+  lines.push('Note: Zillow and county assessor portals block automated access. Do not spend searches trying to open Zillow.');
+  if (parsed.zip) lines.push('Step 1 — ELECTRIC CO-OP: zip ' + parsed.zip + (parsed.city ? ' / ' + parsed.city : ''));
+  lines.push('Step 2 — NEIGHBORHOOD / subdivision context');
   return lines.join('\n');
+}
+
+function fetchRentcastProperty(address) {
+  var apiKey = getResearchRentcastApiKey();
+  if (!apiKey || !getResearchEnableRentcast() || !address) return Promise.resolve(null);
+  var url = 'https://api.rentcast.io/v1/properties?address=' + encodeURIComponent(address.trim());
+  return fetch(url, {
+    headers: { 'Accept': 'application/json', 'X-Api-Key': apiKey }
+  })
+  .then(function(res) {
+    if (res.status === 404) return null;
+    if (!res.ok) {
+      return res.json().catch(function() { return {}; }).then(function(err) {
+        var msg = (err && err.message) || ('RentCast HTTP ' + res.status);
+        throw new Error(msg);
+      });
+    }
+    return res.json();
+  })
+  .then(function(data) {
+    if (Array.isArray(data)) return data.length ? data[0] : null;
+    if (data && (data.formattedAddress || data.squareFootage || data.yearBuilt)) return data;
+    return null;
+  });
+}
+
+function buildRentcastPropertyBlock(record) {
+  if (!record) return '';
+  var lines = ['VERIFIED PROPERTY RECORD (county assessor / public records via RentCast — HIGH confidence, do NOT contradict):'];
+  if (record.formattedAddress) lines.push('- Address: ' + record.formattedAddress);
+  if (record.propertyType) lines.push('- Property type: ' + record.propertyType);
+  if (record.bedrooms != null) lines.push('- Bedrooms: ' + record.bedrooms);
+  if (record.bathrooms != null) lines.push('- Bathrooms: ' + record.bathrooms);
+  if (record.squareFootage) lines.push('- Square footage: ' + record.squareFootage);
+  if (record.lotSize) lines.push('- Lot size: ' + record.lotSize + ' sq ft');
+  if (record.yearBuilt) lines.push('- Year built: ' + record.yearBuilt);
+  if (record.lastSalePrice) lines.push('- Last sale price: $' + Number(record.lastSalePrice).toLocaleString());
+  if (record.lastSaleDate) lines.push('- Last sale date: ' + String(record.lastSaleDate).split('T')[0]);
+  if (record.county) lines.push('- County: ' + record.county);
+  if (record.subdivision) lines.push('- Subdivision: ' + record.subdivision);
+  lines.push('Include these in findings and prefill. Web search is for co-op and neighborhood notes only.');
+  return lines.join('\n');
+}
+
+function buildRentcastFindings(record) {
+  if (!record) return [];
+  var findings = [];
+  if (record.squareFootage) {
+    findings.push({ topic: 'Square Footage', value: String(record.squareFootage) + ' sq ft', confidence: 'high', source: 'RentCast / county assessor' });
+  }
+  if (record.bedrooms != null || record.bathrooms != null) {
+    findings.push({
+      topic: 'Beds/Baths',
+      value: (record.bedrooms != null ? record.bedrooms : '?') + ' bed / ' + (record.bathrooms != null ? record.bathrooms : '?') + ' bath',
+      confidence: 'high',
+      source: 'RentCast / county assessor'
+    });
+  }
+  if (record.yearBuilt) {
+    findings.push({ topic: 'Year Built', value: String(record.yearBuilt), confidence: 'high', source: 'RentCast / county assessor' });
+  }
+  if (record.propertyType) {
+    findings.push({ topic: 'Property Type', value: record.propertyType, confidence: 'high', source: 'RentCast / county assessor' });
+  }
+  if (record.lastSalePrice) {
+    findings.push({
+      topic: 'Last Sale',
+      value: '$' + Number(record.lastSalePrice).toLocaleString() + (record.lastSaleDate ? (' on ' + String(record.lastSaleDate).split('T')[0]) : ''),
+      confidence: 'high',
+      source: 'RentCast / county assessor'
+    });
+  }
+  return findings;
+}
+
+function mergeRentcastIntoOutput(output, record) {
+  if (!record || !output) return output;
+  var rentcastFindings = buildRentcastFindings(record);
+  var existingTopics = {};
+  (output.findings || []).forEach(function(f) { existingTopics[(f.topic || '').toLowerCase()] = true; });
+  rentcastFindings.forEach(function(f) {
+    if (!existingTopics[(f.topic || '').toLowerCase()]) output.findings.push(f);
+  });
+  output.findings = sortResearchFindings(output.findings);
+  output.prefill = output.prefill || {};
+  if (record.squareFootage && !output.prefill.sqft) output.prefill.sqft = String(record.squareFootage);
+  if (record.yearBuilt && !output.prefill.year) output.prefill.year = String(record.yearBuilt);
+  output.meta = output.meta || {};
+  output.meta.rentcast = true;
+  return output;
 }
 
 function buildResearchSearchGuidance() {
@@ -349,14 +424,16 @@ function buildResearchSearchGuidance() {
   return lines.join('\n');
 }
 
-function buildResearchPrompt(payload) {
+function buildResearchPrompt(payload, rentcastRecord) {
+  var rentcastBlock = buildRentcastPropertyBlock(rentcastRecord);
   return 'You are a pre-audit property research assistant for the CHESS energy efficiency program.\n\n' +
     'Use web search' + (getResearchEnableWebFetch() ? ' and web_fetch' : '') +
-    ' to gather publicly available information about this property BEFORE a field audit.\n\n' +
+    ' to gather contextual information about this property BEFORE a field audit.\n\n' +
     'CUSTOMER REFERENCE (search by address only — do NOT search or reference any customer name):\n' +
     'Customer #: ' + payload.customerNumber + '\n' +
     'Address: ' + payload.address + '\n\n' +
-    buildResearchAddressPlan(payload) + '\n\n' +
+    (rentcastBlock ? rentcastBlock + '\n\n' : '') +
+    buildResearchAddressPlan(payload, !!rentcastRecord) + '\n\n' +
     buildResearchSearchGuidance() + '\n\n' +
     'Return ONLY valid JSON with this exact structure:\n' +
     '{\n' +
@@ -459,6 +536,7 @@ function migrateResearchInstructions() {
     var stored = localStorage.getItem('aft_research_instructions') || '';
     if (!stored ||
         stored.indexOf('ZILLOW FIRST') !== -1 ||
+        stored.indexOf('GOOGLE ADDRESS SEARCH') !== -1 ||
         stored.indexOf('site:zillow.com {full address}') !== -1) {
       localStorage.removeItem('aft_research_instructions');
     }
@@ -596,6 +674,8 @@ function saveResearchSettingsFromForm() {
   var enableFetchCheckbox = document.getElementById('research-enable-web-fetch');
   var maxFetchesSelect = document.getElementById('research-max-fetches-select');
   var fetchToolSelect = document.getElementById('research-fetch-tool-select');
+  var rentcastKeyInput = document.getElementById('research-rentcast-key-input');
+  var enableRentcastCheckbox = document.getElementById('research-enable-rentcast');
   var domainsTextarea = document.getElementById('research-domains-textarea');
   var instructionsTextarea = document.getElementById('research-instructions-textarea');
 
@@ -609,6 +689,8 @@ function saveResearchSettingsFromForm() {
   if (enableFetchCheckbox) setResearchEnableWebFetch(!!enableFetchCheckbox.checked);
   if (maxFetchesSelect) setResearchMaxFetches(parseInt(maxFetchesSelect.value, 10));
   if (fetchToolSelect) setResearchFetchTool(fetchToolSelect.value);
+  if (rentcastKeyInput) setResearchRentcastApiKey((rentcastKeyInput.value || '').trim());
+  if (enableRentcastCheckbox) setResearchEnableRentcast(!!enableRentcastCheckbox.checked);
   if (domainsTextarea) setResearchPreferredDomains(sanitizeResearchPreferredDomains(domainsTextarea.value));
 
   var sources = {};
@@ -634,6 +716,8 @@ function refreshResearchSettingsUI() {
   var enableFetchCheckbox = document.getElementById('research-enable-web-fetch');
   var maxFetchesSelect = document.getElementById('research-max-fetches-select');
   var fetchToolSelect = document.getElementById('research-fetch-tool-select');
+  var rentcastKeyInput = document.getElementById('research-rentcast-key-input');
+  var enableRentcastCheckbox = document.getElementById('research-enable-rentcast');
   var domainsTextarea = document.getElementById('research-domains-textarea');
   var instructionsTextarea = document.getElementById('research-instructions-textarea');
 
@@ -674,6 +758,7 @@ function refreshResearchSettingsUI() {
     var fetchTool = getResearchFetchTool();
     Array.from(fetchToolSelect.options).forEach(function(opt) { opt.selected = (opt.value === fetchTool); });
   }
+  if (enableRentcastCheckbox) enableRentcastCheckbox.checked = getResearchEnableRentcast();
   if (domainsTextarea) domainsTextarea.value = getResearchPreferredDomains();
   if (instructionsTextarea && !instructionsTextarea.dataset.dirty) {
     instructionsTextarea.value = getResearchInstructions();
@@ -900,7 +985,7 @@ function renderResearchDetail() {
     var effort = getResearchEffort();
     var badgeParts = [getResearchModel()];
     if (effort) badgeParts.push('effort ' + effort);
-    if (getResearchEnableWebFetch()) badgeParts.push('web fetch on');
+    if (getResearchEnableRentcast() && getResearchRentcastApiKey()) badgeParts.push('RentCast on');
     badgeEl.textContent = badgeParts.join(' · ');
   }
   if (runBtn) {
@@ -1038,19 +1123,27 @@ function runResearchForSelectedJob() {
   var payload = typeof getResearchJobPayload === 'function' ? getResearchJobPayload(job) : null;
   if (!payload || !payload.address) { toast('Job needs an address for research.'); return; }
 
-  var prompt = buildResearchPrompt(payload);
-
   var runBtn = document.getElementById('research-run-btn');
   var tokenEl = document.getElementById('research-token-usage');
-  if (runBtn) { runBtn.disabled = true; runBtn.textContent = '⏳ Researching…'; }
+  if (runBtn) { runBtn.disabled = true; runBtn.textContent = '⏳ Looking up property…'; }
   if (tokenEl) tokenEl.style.display = 'none';
 
-  var requestBody = buildResearchApiRequest(prompt);
+  var rentcastRecord = null;
 
-  fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: buildResearchApiHeaders(apiKey),
-    body: JSON.stringify(requestBody)
+  fetchRentcastProperty(payload.address)
+  .then(function(record) {
+    rentcastRecord = record;
+    if (runBtn) runBtn.textContent = '⏳ Researching…';
+    if (!record && getResearchEnableRentcast() && !getResearchRentcastApiKey()) {
+      console.warn('RentCast API key not set — property sq ft/year may be missing. Add key in Research Settings.');
+    }
+    var prompt = buildResearchPrompt(payload, record);
+    var requestBody = buildResearchApiRequest(prompt);
+    return fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: buildResearchApiHeaders(apiKey),
+      body: JSON.stringify(requestBody)
+    });
   })
   .then(function(res) {
     if (!res.ok) {
@@ -1079,14 +1172,14 @@ function runResearchForSelectedJob() {
     }
 
     var output = enrichResearchOutputFromFindings(normalizeResearchOutput(parsed));
+    if (rentcastRecord) output = mergeRentcastIntoOutput(output, rentcastRecord);
     output.researchedAt = new Date().toISOString();
+    output.meta = output.meta || {};
     if (data.usage) {
-      output.meta = {
-        model: data.model || getResearchModel(),
-        input_tokens: data.usage.input_tokens || 0,
-        output_tokens: data.usage.output_tokens || 0,
-        total_tokens: (data.usage.input_tokens || 0) + (data.usage.output_tokens || 0)
-      };
+      output.meta.model = data.model || getResearchModel();
+      output.meta.input_tokens = data.usage.input_tokens || 0;
+      output.meta.output_tokens = data.usage.output_tokens || 0;
+      output.meta.total_tokens = (data.usage.input_tokens || 0) + (data.usage.output_tokens || 0);
     }
 
     researchEditOutput = output;
@@ -1096,7 +1189,10 @@ function runResearchForSelectedJob() {
     }
     renderResearchQueue();
     renderResearchDetail();
-    toast('Research complete — review and edit before forwarding.');
+    var doneMsg = rentcastRecord
+      ? 'Research complete — property record + context loaded.'
+      : 'Research complete — no assessor record found; review results.';
+    toast(doneMsg);
   })
   .catch(function(err) {
     var msg = err.message || String(err);
