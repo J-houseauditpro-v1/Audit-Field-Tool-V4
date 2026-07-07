@@ -943,6 +943,7 @@ function loadAuditForInterpret(id) {
     S.date = rec.customer.date || '';
     S.year = rec.customer.yearBuilt || '';
     S.sqft = rec.customer.sqFt || '';
+    S.propertyType = rec.customer.propertyType || '';
     S.coop = rec.customer.coop || '';
     S.customerNumber = rec.customer.customerNumber != null ? rec.customer.customerNumber : null;
     S.scheduleJobId = rec.scheduleJobId || null;
@@ -1833,6 +1834,7 @@ function openInterpArchive(id) {
     S.date = rec.customer.date || '';
     S.year = rec.customer.yearBuilt || '';
     S.sqft = rec.customer.sqFt || '';
+    S.propertyType = rec.customer.propertyType || '';
     S.coop = rec.customer.coop || '';
     S.customerNumber = rec.customer.customerNumber != null ? rec.customer.customerNumber : null;
     S.scheduleJobId = rec.scheduleJobId || null;

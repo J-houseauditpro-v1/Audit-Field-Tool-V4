@@ -4,7 +4,7 @@
 
 // ── STATE ────────────────────────────────────────────────────
 var S = {
-  name: '', address: '', date: '', year: '', sqft: '', coop: '',
+  name: '', address: '', date: '', year: '', sqft: '', propertyType: '', coop: '',
   customerNumber: null,
   scheduleJobId: null,
   researchNotes: '',
@@ -681,14 +681,26 @@ function initTabs() {
 // ── CUSTOMER FIELDS ───────────────────────────────────────────
 var fieldMap = [
   ['f-name','name'], ['f-address','address'], ['f-date','date'],
-  ['f-year','year'], ['f-sqft','sqft'], ['f-coop','coop']
+  ['f-year','year'], ['f-sqft','sqft'], ['f-property-type','propertyType'], ['f-coop','coop']
 ];
+
+function syncDateFieldPlaceholder(wrap) {
+  if (!wrap) return;
+  var input = wrap.querySelector('input[type="date"]');
+  if (!input) return;
+  wrap.classList.toggle('is-empty', !input.value);
+}
+
+function syncAllDateFieldPlaceholders() {
+  document.querySelectorAll('.date-field').forEach(syncDateFieldPlaceholder);
+}
 
 function fillFields() {
   fieldMap.forEach(function(pair) {
     var el = document.getElementById(pair[0]);
     if (el) el.value = S[pair[1]] || '';
   });
+  syncAllDateFieldPlaceholders();
 }
 
 function initCustomerFields() {
@@ -705,6 +717,14 @@ function initCustomerFields() {
       save();
       renderHeader();
     });
+  });
+  document.querySelectorAll('.date-field').forEach(function(wrap) {
+    var input = wrap.querySelector('input[type="date"]');
+    if (!input) return;
+    var sync = function() { syncDateFieldPlaceholder(wrap); };
+    input.addEventListener('input', sync);
+    input.addEventListener('change', sync);
+    sync();
   });
 }
 
@@ -2249,6 +2269,7 @@ function persistAuditRecord() {
       date: S.date,
       yearBuilt: S.year,
       sqFt: S.sqft,
+      propertyType: S.propertyType,
       coop: S.coop,
       customerNumber: S.customerNumber
     },
@@ -2436,7 +2457,7 @@ function autosaveAudit() {
 
 function clearCurrent() {
   stopVoiceRec();
-  S.name = ''; S.address = ''; S.date = ''; S.year = ''; S.sqft = ''; S.coop = '';
+  S.name = ''; S.address = ''; S.date = ''; S.year = ''; S.sqft = ''; S.propertyType = ''; S.coop = '';
   S.customerNumber = null;
   S.scheduleJobId = null;
   S.researchNotes = '';
@@ -2462,6 +2483,7 @@ function loadAudit(id) {
   S.date = rec.customer.date || '';
   S.year = rec.customer.yearBuilt || '';
   S.sqft = rec.customer.sqFt || '';
+  S.propertyType = rec.customer.propertyType || '';
   S.coop = rec.customer.coop || '';
   S.customerNumber = rec.customer.customerNumber != null ? rec.customer.customerNumber : null;
   S.scheduleJobId = rec.scheduleJobId || null;
@@ -2502,6 +2524,7 @@ function deleteAudit(id) {
     S.date = '';
     S.year = '';
     S.sqft = '';
+    S.propertyType = '';
     S.coop = '';
     S.customerNumber = null;
     S.scheduleJobId = null;
@@ -2687,6 +2710,7 @@ function buildAuditTextSummary(audit) {
   lines.push('Address:    ' + (c.address || '—'));
   lines.push('Date:       ' + (c.date || '—'));
   lines.push('Co-op:      ' + (c.coop || '—'));
+  lines.push('Property Type: ' + (c.propertyType || '—'));
   lines.push('Year Built: ' + (c.yearBuilt || c.year || '—'));
   lines.push('Sq Ft:      ' + (c.sqFt || c.sqft || '—'));
   lines.push('');
@@ -2815,6 +2839,7 @@ function buildRecord() {
       date: S.date,
       yearBuilt: S.year,
       sqFt: S.sqft,
+      propertyType: S.propertyType,
       coop: S.coop
     },
     voiceDump: S.dump,

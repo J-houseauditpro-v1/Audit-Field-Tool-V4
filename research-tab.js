@@ -292,15 +292,15 @@ function buildResearchOutputFromRentcast(record, payload, meta) {
   if (record.propertyType) summaryParts.push(record.propertyType);
   if (record.squareFootage) summaryParts.push(record.squareFootage + ' sq ft');
   if (record.yearBuilt) summaryParts.push('built ' + record.yearBuilt);
-  if (record.bedrooms != null) summaryParts.push(record.bedrooms + ' bed');
   var summary = summaryParts.length
-    ? ('RentCast assessor record for ' + (record.formattedAddress || payload.address) + ': ' + summaryParts.join(', ') + '.')
-    : ('RentCast record found for ' + (record.formattedAddress || payload.address) + '.');
+    ? (summaryParts.join(', ') + '.')
+    : ('Property record found for ' + (record.formattedAddress || payload.address) + '.');
 
   return normalizeResearchOutput({
     findings: findings,
     summary: summary,
     prefill: {
+      propertyType: record.propertyType ? String(record.propertyType) : '',
       year: record.yearBuilt ? String(record.yearBuilt) : '',
       sqft: record.squareFootage ? String(record.squareFootage) : '',
       coop: '',
@@ -329,7 +329,7 @@ function buildResearchNotFoundOutput(payload, query, attempts) {
   return normalizeResearchOutput({
     findings: findings,
     summary: 'RentCast returned no property record for ' + payload.address + '. Verify the address format and try again, or enter sq ft / year built manually.',
-    prefill: { year: '', sqft: '', coop: '', generalNotes: 'No RentCast record — verify year built and sq ft on site.' },
+    prefill: { propertyType: '', year: '', sqft: '', coop: '', generalNotes: 'No RentCast record — verify year built and sq ft on site.' },
     meta: { rentcast: false, query: query, attempts: attempts || [] }
   });
 }
@@ -445,6 +445,7 @@ function normalizeResearchOutput(raw) {
     findings: sortResearchFindings(raw.findings || []),
     summary: raw.summary || '',
     prefill: {
+      propertyType: (raw.prefill && raw.prefill.propertyType) || '',
       year: (raw.prefill && raw.prefill.year) || '',
       sqft: (raw.prefill && raw.prefill.sqft) || '',
       coop: (raw.prefill && raw.prefill.coop) || '',
@@ -455,25 +456,37 @@ function normalizeResearchOutput(raw) {
   };
 }
 
+function getResearchAuditFields(output) {
+  var fields = { propertyType: '', sqft: '', year: '' };
+  if (!output) return fields;
+  var pre = output.prefill || {};
+  fields.propertyType = pre.propertyType || '';
+  fields.sqft = pre.sqft || '';
+  fields.year = pre.year || '';
+  (output.findings || []).forEach(function(f) {
+    var topic = (f.topic || '').toLowerCase();
+    if (!fields.propertyType && topic === 'property type') fields.propertyType = f.value || '';
+    if (!fields.sqft && topic === 'square footage') {
+      fields.sqft = String(f.value || '').replace(/\s*sq\s*ft\s*/i, '').trim();
+    }
+    if (!fields.year && topic === 'year built') fields.year = String(f.value || '').trim();
+  });
+  return fields;
+}
+
+function formatSqftForNotes(sqft) {
+  var n = String(sqft || '').trim();
+  if (!n) return '';
+  return /\bsq\s*ft\b/i.test(n) ? n : n + ' sq ft';
+}
+
 function formatResearchNotesText(output) {
-  if (!output) return '';
+  var f = getResearchAuditFields(output);
   var lines = [];
-  if (output.summary && output.summary.trim()) lines.push(output.summary.trim());
-  if (output.findings && output.findings.length) {
-    if (lines.length) lines.push('');
-    lines.push('FINDINGS:');
-    sortResearchFindings(output.findings).forEach(function(f) {
-      var conf = (f.confidence || 'medium').toUpperCase();
-      var line = '- [' + conf + '] ' + (f.topic || 'Finding') + ': ' + (f.value || '');
-      if (f.source) line += ' (' + f.source + ')';
-      lines.push(line);
-    });
-  }
-  if (output.prefill && output.prefill.generalNotes && output.prefill.generalNotes.trim()) {
-    if (lines.length) lines.push('');
-    lines.push('NOTES FOR FIELD:');
-    lines.push(output.prefill.generalNotes.trim());
-  }
+  if (f.propertyType) lines.push('- Property Type: ' + f.propertyType);
+  var sqftLine = formatSqftForNotes(f.sqft);
+  if (sqftLine) lines.push('- Square Footage: ' + sqftLine);
+  if (f.year) lines.push('- Year Built: ' + f.year);
   return lines.join('\n').trim();
 }
 
@@ -606,6 +619,7 @@ function renderResearchDetail() {
 function renderResearchOutputEditor(output) {
   var findingsEl = document.getElementById('research-findings-list');
   var summaryEl = document.getElementById('research-summary-edit');
+  var typeEl = document.getElementById('research-prefill-property-type');
   var yearEl = document.getElementById('research-prefill-year');
   var sqftEl = document.getElementById('research-prefill-sqft');
   var coopEl = document.getElementById('research-prefill-coop');
@@ -613,6 +627,7 @@ function renderResearchOutputEditor(output) {
   var tokenEl = document.getElementById('research-token-usage');
 
   if (summaryEl) summaryEl.value = output.summary || '';
+  if (typeEl) typeEl.value = (output.prefill && output.prefill.propertyType) || '';
   if (yearEl) yearEl.value = (output.prefill && output.prefill.year) || '';
   if (sqftEl) sqftEl.value = (output.prefill && output.prefill.sqft) || '';
   if (coopEl) coopEl.value = (output.prefill && output.prefill.coop) || '';
@@ -641,12 +656,14 @@ function renderResearchOutputEditor(output) {
 function collectResearchEditsFromForm() {
   var output = researchEditOutput ? JSON.parse(JSON.stringify(researchEditOutput)) : { findings: [], prefill: {}, meta: {} };
   var summaryEl = document.getElementById('research-summary-edit');
+  var typeEl = document.getElementById('research-prefill-property-type');
   var yearEl = document.getElementById('research-prefill-year');
   var sqftEl = document.getElementById('research-prefill-sqft');
   var coopEl = document.getElementById('research-prefill-coop');
   var notesEl = document.getElementById('research-prefill-notes');
   output.summary = summaryEl ? summaryEl.value.trim() : output.summary;
   output.prefill = output.prefill || {};
+  output.prefill.propertyType = typeEl ? typeEl.value.trim() : output.prefill.propertyType;
   output.prefill.year = yearEl ? yearEl.value.trim() : output.prefill.year;
   output.prefill.sqft = sqftEl ? sqftEl.value.trim() : output.prefill.sqft;
   output.prefill.coop = coopEl ? coopEl.value.trim() : output.prefill.coop;
@@ -745,18 +762,21 @@ function forwardResearchToAudit() {
     updateScheduleJob(job.id, {
       researchOutput: output,
       researchForwardedAt: new Date().toISOString(),
+      propertyType: output.prefill.propertyType || job.propertyType,
       year: output.prefill.year || job.year,
       sqft: output.prefill.sqft || job.sqft,
       coop: output.prefill.coop || job.coop
     });
   }
+  var auditFields = getResearchAuditFields(output);
   S.name = job.name || '';
   S.address = job.address || '';
   S.date = job.date || '';
   S.customerNumber = job.customerNumber != null ? job.customerNumber : null;
   S.scheduleJobId = job.id;
-  S.year = (output.prefill && output.prefill.year) || job.year || '';
-  S.sqft = (output.prefill && output.prefill.sqft) || job.sqft || '';
+  S.propertyType = auditFields.propertyType || job.propertyType || '';
+  S.year = auditFields.year || job.year || '';
+  S.sqft = auditFields.sqft || job.sqft || '';
   S.coop = (output.prefill && output.prefill.coop) || job.coop || '';
   S.researchNotes = formatResearchNotesText(output);
   var keepPhotos = S.auditId && job.auditId && S.auditId === job.auditId;

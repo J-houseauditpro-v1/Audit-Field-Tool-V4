@@ -257,6 +257,23 @@ body {
 }
 .field:focus { outline: none; border-color: var(--gold); }
 input[type="date"] { color-scheme: dark; }
+.date-field {
+  flex: 1;
+  min-width: 120px;
+  position: relative;
+}
+.date-field .field { width: 100%; }
+.date-field-ph {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #888;
+  pointer-events: none;
+  font-size: 0.9rem;
+}
+.date-field:not(.is-empty) .date-field-ph,
+.date-field:focus-within .date-field-ph { display: none; }
 select.field { cursor: pointer; }
 
 /* CHEAT SHEET */

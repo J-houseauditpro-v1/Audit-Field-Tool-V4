@@ -21,6 +21,7 @@ function wireReviewTab() {
     ['review-f-date', 'date'],
     ['review-f-year', 'year'],
     ['review-f-sqft', 'sqft'],
+    ['review-f-property-type', 'propertyType'],
     ['review-f-coop', 'coop']
   ];
   fields.forEach(function(pair) {
@@ -32,6 +33,26 @@ function wireReviewTab() {
       if (typeof save === 'function') save();
       if (typeof renderHeader === 'function') renderHeader();
     });
+    el.addEventListener('change', function() {
+      if (typeof S === 'undefined') return;
+      S[pair[1]] = el.value;
+      if (typeof save === 'function') save();
+      if (typeof renderHeader === 'function') renderHeader();
+      if (pair[0] === 'review-f-date' && typeof syncAllDateFieldPlaceholders === 'function') {
+        syncAllDateFieldPlaceholders();
+      }
+    });
+  });
+
+  document.querySelectorAll('.date-field').forEach(function(wrap) {
+    var input = wrap.querySelector('input[type="date"]');
+    if (!input || input.id.indexOf('review-') !== 0) return;
+    var sync = function() {
+      if (typeof syncDateFieldPlaceholder === 'function') syncDateFieldPlaceholder(wrap);
+    };
+    input.addEventListener('input', sync);
+    input.addEventListener('change', sync);
+    sync();
   });
 
   var researchEl = document.getElementById('review-research-notes');
@@ -74,12 +95,14 @@ function renderReviewTab() {
     'review-f-date': S.date,
     'review-f-year': S.year,
     'review-f-sqft': S.sqft,
+    'review-f-property-type': S.propertyType,
     'review-f-coop': S.coop
   };
   Object.keys(fields).forEach(function(id) {
     var el = document.getElementById(id);
     if (el && document.activeElement !== el) el.value = fields[id] || '';
   });
+  if (typeof syncAllDateFieldPlaceholders === 'function') syncAllDateFieldPlaceholders();
 
   var researchEl = document.getElementById('review-research-notes');
   if (researchEl && document.activeElement !== researchEl) {
@@ -147,6 +170,7 @@ function applyReviewEditsToS() {
     'review-f-date': 'date',
     'review-f-year': 'year',
     'review-f-sqft': 'sqft',
+    'review-f-property-type': 'propertyType',
     'review-f-coop': 'coop'
   };
   Object.keys(map).forEach(function(id) {
