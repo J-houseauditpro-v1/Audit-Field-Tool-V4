@@ -6,6 +6,7 @@ var reviewTabInitialized = false;
 function initReviewTab() {
   if (!reviewTabInitialized) {
     reviewTabInitialized = true;
+    if (typeof initAftSharedSelects === 'function') initAftSharedSelects();
     wireReviewTab();
   }
   renderReviewTab();
@@ -41,21 +42,15 @@ function wireReviewTab() {
       if (pair[0] === 'review-f-date' && typeof syncAllDateFieldPlaceholders === 'function') {
         syncAllDateFieldPlaceholders();
       }
+      if (el.tagName === 'SELECT' && typeof syncSelectPlaceholder === 'function') {
+        syncSelectPlaceholder(el);
+      }
     });
   });
 
   document.querySelectorAll('.date-field').forEach(function(wrap) {
     if (typeof bindDateFieldPlaceholder === 'function') bindDateFieldPlaceholder(wrap);
   });
-
-  var researchEl = document.getElementById('review-research-notes');
-  if (researchEl) {
-    researchEl.addEventListener('input', function() {
-      if (typeof S === 'undefined') return;
-      S.researchNotes = researchEl.value;
-      if (typeof save === 'function') save();
-    });
-  }
 
   var dumpEl = document.getElementById('review-voice-dump');
   if (dumpEl) {
@@ -96,11 +91,9 @@ function renderReviewTab() {
     if (el && document.activeElement !== el) el.value = fields[id] || '';
   });
   if (typeof syncAllDateFieldPlaceholders === 'function') syncAllDateFieldPlaceholders();
-
-  var researchEl = document.getElementById('review-research-notes');
-  if (researchEl && document.activeElement !== researchEl) {
-    researchEl.value = S.researchNotes || '';
-  }
+  document.querySelectorAll('#review-content select.field').forEach(function(el) {
+    if (typeof syncSelectPlaceholder === 'function') syncSelectPlaceholder(el);
+  });
 
   var dumpEl = document.getElementById('review-voice-dump');
   if (dumpEl && document.activeElement !== dumpEl) {
@@ -170,8 +163,6 @@ function applyReviewEditsToS() {
     var el = document.getElementById(id);
     if (el) S[map[id]] = el.value;
   });
-  var researchEl = document.getElementById('review-research-notes');
-  if (researchEl) S.researchNotes = researchEl.value;
   var dumpEl = document.getElementById('review-voice-dump');
   if (dumpEl) {
     S.dump = dumpEl.value;

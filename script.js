@@ -456,6 +456,14 @@ function toggleCheatSheet() {
   arrow.textContent = open ? '▲' : '▼';
 }
 
+function toggleScheduleAddSection() {
+  var body = document.getElementById('schedule-add-body');
+  var arrow = document.getElementById('schedule-add-arrow');
+  if (!body || !arrow) return;
+  var open = body.classList.toggle('open');
+  arrow.textContent = open ? '▲' : '▼';
+}
+
 function wireExportFullButtons() {
   safeBindClick('export-full-backup-btn', function() {
     exportFullBackup(document.getElementById('export-full-backup-progress'));
@@ -489,6 +497,11 @@ function bootstrapGlobalClickHandlers() {
     if (e.target.closest('#cheat-toggle')) {
       e.preventDefault();
       toggleCheatSheet();
+      return;
+    }
+    if (e.target.closest('#schedule-add-toggle')) {
+      e.preventDefault();
+      toggleScheduleAddSection();
       return;
     }
     if (e.target.closest('#archive-detail-close')) {
@@ -641,7 +654,6 @@ function isVoiceSubActive() {
 function runSubTabInit(main, sub) {
   if (main === 'jobs' && typeof initCustomersTab === 'function') initCustomersTab();
   if (main === 'audit' && sub === 'voice' && typeof renderPhotoNotesSummary === 'function') renderPhotoNotesSummary();
-  if (main === 'audit' && sub === 'voice' && typeof renderResearchNotesSummary === 'function') renderResearchNotesSummary();
   if (main === 'audit' && sub === 'tc' && typeof renderTCInfo === 'function') renderTCInfo();
   if (main === 'audit' && sub === 'photos') positionPhotoStickyControls();
   if (main === 'audit' && sub === 'review' && typeof initReviewTab === 'function') initReviewTab();
@@ -771,10 +783,79 @@ function initTabs() {
     });
   });
   initSubTabs();
-  switchSubTab('jobs', 'schedule');
 }
 
 // ── CUSTOMER FIELDS ───────────────────────────────────────────
+var AFT_PROPERTY_TYPES = [
+  'Normal Single Family',
+  'Manufactured',
+  'Multi-Family'
+];
+
+var AFT_COOPS = [
+  'Arkansas Valley',
+  'C&L Electric',
+  'Carroll Electric',
+  'Clay County Electric',
+  'Craighead Electric',
+  'Delta Electric',
+  'Farmers Electric',
+  'First Electric',
+  'Mississippi County Electric',
+  'Ouachita Electric',
+  'Ozarks Electric',
+  'Petit Jean Electric',
+  'Rich Mountain Electric',
+  'South Central Arkansas Electric',
+  'Southwest Arkansas Electric',
+  'Verdigris Valley Electric',
+  'Woodruff Electric'
+];
+
+function populateAftSelect(selectEl, options, placeholder) {
+  if (!selectEl || selectEl.dataset.aftPopulated === '1') return;
+  selectEl.dataset.aftPopulated = '1';
+  selectEl.innerHTML = '';
+  var ph = document.createElement('option');
+  ph.value = '';
+  ph.textContent = placeholder;
+  selectEl.appendChild(ph);
+  (options || []).forEach(function(opt) {
+    var o = document.createElement('option');
+    o.value = opt;
+    o.textContent = opt;
+    selectEl.appendChild(o);
+  });
+}
+
+function syncSelectPlaceholder(selectEl) {
+  if (!selectEl || selectEl.tagName !== 'SELECT') return;
+  selectEl.classList.toggle('is-empty', !selectEl.value);
+}
+
+function bindSelectPlaceholder(selectEl) {
+  if (!selectEl || selectEl.dataset.aftSelectPhBound === '1') return;
+  selectEl.dataset.aftSelectPhBound = '1';
+  var sync = function() { syncSelectPlaceholder(selectEl); };
+  selectEl.addEventListener('change', sync);
+  selectEl.addEventListener('input', sync);
+  sync();
+}
+
+function initAftSharedSelects() {
+  var propertySelects = ['f-property-type', 'review-f-property-type', 'schedule-add-property-type'];
+  var coopSelects = ['f-coop', 'review-f-coop', 'schedule-add-coop'];
+  propertySelects.forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) populateAftSelect(el, AFT_PROPERTY_TYPES, 'Select property type...');
+  });
+  coopSelects.forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) populateAftSelect(el, AFT_COOPS, 'Select Co-op...');
+  });
+  document.querySelectorAll('select.field').forEach(bindSelectPlaceholder);
+}
+
 var fieldMap = [
   ['f-name','name'], ['f-address','address'], ['f-date','date'],
   ['f-year','year'], ['f-sqft','sqft'], ['f-property-type','propertyType'], ['f-coop','coop']
@@ -808,9 +889,11 @@ function fillFields() {
     if (el) el.value = S[pair[1]] || '';
   });
   syncAllDateFieldPlaceholders();
+  document.querySelectorAll('select.field').forEach(syncSelectPlaceholder);
 }
 
 function initCustomerFields() {
+  initAftSharedSelects();
   fieldMap.forEach(function(pair) {
     var el = document.getElementById(pair[0]);
     if (!el) return;
@@ -818,11 +901,14 @@ function initCustomerFields() {
       S[pair[1]] = el.value;
       save();
       renderHeader();
+      if (el.tagName === 'SELECT') syncSelectPlaceholder(el);
     });
     el.addEventListener('change', function() {
       S[pair[1]] = el.value;
       save();
       renderHeader();
+      if (pair[0] === 'f-date') syncAllDateFieldPlaceholders();
+      if (el.tagName === 'SELECT') syncSelectPlaceholder(el);
     });
   });
   document.querySelectorAll('.date-field').forEach(bindDateFieldPlaceholder);
@@ -1110,17 +1196,6 @@ function renderPhotoNotesSummary() {
       items +
     '</div>';
   }).join('');
-}
-
-function renderResearchNotesSummary() {
-  var el = document.getElementById('research-notes-summary');
-  if (!el) return;
-  var notes = (typeof S !== 'undefined' && S.researchNotes) ? S.researchNotes.trim() : '';
-  if (!notes) {
-    el.innerHTML = '<div class="empty-msg">No research notes yet</div>';
-    return;
-  }
-  el.innerHTML = '<div class="research-notes-body">' + escapeHtml(notes).replace(/\n/g, '<br>') + '</div>';
 }
 
 // ── PHOTOS ────────────────────────────────────────────────────
@@ -2586,7 +2661,6 @@ function clearCurrent() {
   renderHeader();
   renderVoiceDump();
   renderPhotoList();
-  if (typeof renderResearchNotesSummary === 'function') renderResearchNotesSummary();
   renderExportSummary();
   toast('New audit started');
 }
@@ -2625,7 +2699,6 @@ function loadAudit(id) {
   renderVoiceDump();
   renderPhotoList();
   renderTCInfo();
-  if (typeof renderResearchNotesSummary === 'function') renderResearchNotesSummary();
   switchMainTab('audit', 'voice');
   toast('Loaded: ' + (S.name || 'audit'));
   if (typeof refreshInterpretFromLoadedAudit === 'function') refreshInterpretFromLoadedAudit();

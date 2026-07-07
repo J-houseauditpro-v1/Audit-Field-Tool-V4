@@ -45,50 +45,44 @@
 <!-- ======================== JOBS MAIN TAB ======================== -->
 <div id="tab-jobs" class="tabpanel main-tabpanel">
 
-  <section class="card">
-    <div class="row-between" style="margin-bottom:10px;">
-      <div class="card-title" style="margin-bottom:0;">📅 Jobs</div>
-      <button class="btn-gold btn-sm" id="customers-refresh-btn">🔄 Sheets</button>
-    </div>
+  <section class="card card-search-only">
     <input class="field" id="customers-search" type="search" placeholder="Search by name or address…" style="width:100%;">
     <div id="customers-fetch-status" style="font-size:0.8rem;margin-top:6px;display:none;"></div>
     <div id="customers-cache-note" class="card-sub" style="margin-top:4px;display:none;"></div>
   </section>
 
   <section class="card" id="schedule-add-card">
-    <div class="row-between" style="align-items:flex-start;margin-bottom:8px;">
-      <div class="card-title" id="schedule-add-title" style="margin-bottom:0;">+ Add Job</div>
-      <button type="button" class="btn-sm" id="schedule-zillow-btn" title="Zillow lookup">🏠 Zillow</button>
-    </div>
-    <div class="schedule-add-field">
-      <label class="schedule-field-label" for="schedule-add-name">Name</label>
-      <input class="field" id="schedule-add-name" type="text" placeholder="Customer name" autocomplete="off">
-    </div>
-    <div class="schedule-add-field" style="margin-top:8px;">
-      <label class="schedule-field-label" for="schedule-add-address">Address</label>
-      <input class="field schedule-add-address-input" id="schedule-add-address" type="text" placeholder="Full address with city, state, zip" autocomplete="off">
-    </div>
-    <div class="schedule-property-grid" style="margin-top:8px;">
-      <div class="schedule-add-field schedule-field-full">
-        <label class="schedule-field-label" for="schedule-add-property-type">Property Type</label>
-        <input class="field" id="schedule-add-property-type" type="text" placeholder="e.g. Single Family" autocomplete="off">
-      </div>
-      <div class="schedule-add-field">
-        <label class="schedule-field-label" for="schedule-add-year">Year Built</label>
-        <input class="field" id="schedule-add-year" type="text" inputmode="numeric" placeholder="e.g. 2000" autocomplete="off">
-      </div>
-      <div class="schedule-add-field">
-        <label class="schedule-field-label" for="schedule-add-sqft">Sq Ft</label>
-        <input class="field" id="schedule-add-sqft" type="text" inputmode="numeric" placeholder="e.g. 1972" autocomplete="off">
-      </div>
-      <div class="schedule-add-field schedule-field-full">
-        <label class="schedule-field-label" for="schedule-add-coop">Co-op</label>
-        <input class="field" id="schedule-add-coop" type="text" placeholder="Electric co-op" autocomplete="off">
+    <div class="schedule-add-header">
+      <button type="button" class="schedule-add-toggle" id="schedule-add-toggle">
+        <span id="schedule-add-title">+ Add Job</span>
+        <span id="schedule-add-arrow">▼</span>
+      </button>
+      <div class="schedule-add-header-btns">
+        <button type="button" class="btn-sm" id="schedule-zillow-btn" title="Zillow lookup">🏠 Zillow</button>
+        <button type="button" class="btn-gold btn-sm" id="customers-refresh-btn">🔄 Sheets</button>
       </div>
     </div>
-    <div style="display:flex;gap:8px;margin-top:10px;">
-      <button type="button" class="btn-gold btn-full" id="schedule-add-btn">Add to Schedule</button>
-      <button type="button" class="btn-outline btn-full" id="schedule-cancel-edit-btn" style="display:none;">Cancel</button>
+    <div class="schedule-add-body open" id="schedule-add-body">
+      <div class="customer-info-fields">
+        <div class="field-row">
+          <input class="field" id="schedule-add-name" type="text" placeholder="Customer name" autocomplete="off">
+          <input class="field schedule-add-address-input" id="schedule-add-address" type="text" placeholder="Full address with city, state, zip" autocomplete="off">
+        </div>
+        <div class="field-row">
+          <input class="field" id="schedule-add-year" type="text" inputmode="numeric" placeholder="Year built" autocomplete="off">
+          <input class="field" id="schedule-add-sqft" type="text" inputmode="numeric" placeholder="Sq ft" autocomplete="off">
+        </div>
+        <div class="field-row field-row-single">
+          <select class="field is-empty" id="schedule-add-property-type"></select>
+        </div>
+        <div class="field-row field-row-single">
+          <select class="field is-empty" id="schedule-add-coop"></select>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:10px;">
+        <button type="button" class="btn-gold btn-full" id="schedule-add-btn">Add to Schedule</button>
+        <button type="button" class="btn-outline btn-full" id="schedule-cancel-edit-btn" style="display:none;">Cancel</button>
+      </div>
     </div>
   </section>
 
@@ -117,42 +111,25 @@
       <div class="card-title" style="margin-bottom:0;">Customer Info</div>
       <button type="button" class="btn-sm btn-danger-sm" id="btn-reset-audit">Reset</button>
     </div>
-    <div class="field-row">
-      <input class="field" id="f-name" type="text" placeholder="Customer name" autocomplete="off">
-      <input class="field" id="f-address" type="text" placeholder="Address" autocomplete="off">
-    </div>
-    <div class="field-row customer-date-row">
-      <div class="date-field is-empty">
-        <input class="field" id="f-date" type="date">
-        <span class="date-field-ph">Select Date</span>
+    <div class="customer-info-fields">
+      <div class="field-row">
+        <input class="field" id="f-name" type="text" placeholder="Customer name" autocomplete="off">
+        <input class="field" id="f-address" type="text" placeholder="Address" autocomplete="off">
       </div>
-      <input class="field" id="f-year" type="text" inputmode="numeric" placeholder="Year built">
-      <input class="field" id="f-sqft" type="text" inputmode="numeric" placeholder="Sq ft">
-    </div>
-    <div class="field-row">
-      <input class="field" id="f-property-type" type="text" placeholder="Property type" autocomplete="off">
-    </div>
-    <div class="field-row">
-      <select class="field" id="f-coop">
-        <option value="">Select Co-op...</option>
-        <option>Arkansas Valley</option>
-        <option>C&amp;L Electric</option>
-        <option>Carroll Electric</option>
-        <option>Clay County Electric</option>
-        <option>Craighead Electric</option>
-        <option>Delta Electric</option>
-        <option>Farmers Electric</option>
-        <option>First Electric</option>
-        <option>Mississippi County Electric</option>
-        <option>Ouachita Electric</option>
-        <option>Ozarks Electric</option>
-        <option>Petit Jean Electric</option>
-        <option>Rich Mountain Electric</option>
-        <option>South Central Arkansas Electric</option>
-        <option>Southwest Arkansas Electric</option>
-        <option>Verdigris Valley Electric</option>
-        <option>Woodruff Electric</option>
-      </select>
+      <div class="field-row customer-date-row">
+        <div class="date-field is-empty">
+          <input class="field" id="f-date" type="date">
+          <span class="date-field-ph">Select Date</span>
+        </div>
+        <input class="field" id="f-year" type="text" inputmode="numeric" placeholder="Year built">
+        <input class="field" id="f-sqft" type="text" inputmode="numeric" placeholder="Sq ft">
+      </div>
+      <div class="field-row field-row-single">
+        <select class="field is-empty" id="f-property-type"></select>
+      </div>
+      <div class="field-row field-row-single">
+        <select class="field is-empty" id="f-coop"></select>
+      </div>
     </div>
   </section>
 
@@ -171,15 +148,6 @@
       <div class="cheat-item">9. <b>CONDENSER/SYSTEM CONDITION</b> — Condenser clean or needs cleaning? Any obvious HVAC issues to note?</div>
       <div class="cheat-item">10. <b>OZARKS MEMBER?</b> — Co-op? Any program eligibility edge cases? Anything unusual about this house?</div>
     </div>
-  </section>
-
-  <!-- RESEARCH NOTES — populated from Jobs → Research after review -->
-  <section class="card">
-    <div class="row-between">
-      <div class="card-title">🔍 Research Notes</div>
-    </div>
-    <div class="card-sub">Property details from Zillow lookup (Jobs tab). Shown on Audit Data after you start an audit.</div>
-    <div id="research-notes-summary"><div class="empty-msg">No research notes yet</div></div>
   </section>
 
   <!-- GENERAL NOTES -->
@@ -324,44 +292,26 @@
 
     <section class="card">
       <div class="card-title">Customer Info</div>
-      <div class="field-row">
-        <input class="field" id="review-f-name" type="text" placeholder="Customer name" autocomplete="off">
-        <input class="field" id="review-f-address" type="text" placeholder="Address" autocomplete="off">
-      </div>
-      <div class="field-row">
-        <div class="date-field is-empty">
-          <input class="field" id="review-f-date" type="date">
-          <span class="date-field-ph">Select Date</span>
+      <div class="customer-info-fields">
+        <div class="field-row">
+          <input class="field" id="review-f-name" type="text" placeholder="Customer name" autocomplete="off">
+          <input class="field" id="review-f-address" type="text" placeholder="Address" autocomplete="off">
         </div>
-        <input class="field" id="review-f-year" type="text" inputmode="numeric" placeholder="Year built">
-        <input class="field" id="review-f-sqft" type="text" inputmode="numeric" placeholder="Sq ft">
+        <div class="field-row customer-date-row">
+          <div class="date-field is-empty">
+            <input class="field" id="review-f-date" type="date">
+            <span class="date-field-ph">Select Date</span>
+          </div>
+          <input class="field" id="review-f-year" type="text" inputmode="numeric" placeholder="Year built">
+          <input class="field" id="review-f-sqft" type="text" inputmode="numeric" placeholder="Sq ft">
+        </div>
+        <div class="field-row field-row-single">
+          <select class="field is-empty" id="review-f-property-type"></select>
+        </div>
+        <div class="field-row field-row-single">
+          <select class="field is-empty" id="review-f-coop"></select>
+        </div>
       </div>
-      <input class="field" id="review-f-property-type" type="text" placeholder="Property type" autocomplete="off" style="width:100%;margin-top:8px;">
-      <select class="field" id="review-f-coop" style="width:100%;margin-top:8px;">
-        <option value="">Select Co-op...</option>
-        <option>Arkansas Valley</option>
-        <option>C&amp;L Electric</option>
-        <option>Carroll Electric</option>
-        <option>Clay County Electric</option>
-        <option>Craighead Electric</option>
-        <option>Delta Electric</option>
-        <option>Farmers Electric</option>
-        <option>First Electric</option>
-        <option>Mississippi County Electric</option>
-        <option>Ouachita Electric</option>
-        <option>Ozarks Electric</option>
-        <option>Petit Jean Electric</option>
-        <option>Rich Mountain Electric</option>
-        <option>South Central Arkansas Electric</option>
-        <option>Southwest Arkansas Electric</option>
-        <option>Verdigris Valley Electric</option>
-        <option>Woodruff Electric</option>
-      </select>
-    </section>
-
-    <section class="card">
-      <div class="card-title">🔍 Research Notes</div>
-      <textarea class="field review-textarea" id="review-research-notes" rows="4" placeholder="No research notes"></textarea>
     </section>
 
     <section class="card">
