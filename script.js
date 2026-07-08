@@ -849,6 +849,7 @@ var AFT_COOPS = [
 
 function populateAftSelect(selectEl, options, placeholder) {
   if (!selectEl || selectEl.dataset.aftPopulated === '1') return;
+  var prev = selectEl.value;
   selectEl.dataset.aftPopulated = '1';
   selectEl.innerHTML = '';
   var ph = document.createElement('option');
@@ -861,6 +862,7 @@ function populateAftSelect(selectEl, options, placeholder) {
     o.textContent = opt;
     selectEl.appendChild(o);
   });
+  if (prev) selectEl.value = prev;
 }
 
 function syncSelectPlaceholder(selectEl) {
