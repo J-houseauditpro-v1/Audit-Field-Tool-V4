@@ -1043,6 +1043,7 @@ function renderInterpretInfo() {
   var nameEl = document.getElementById('interp-name-display');
   var addrEl = document.getElementById('interp-address-display');
   var dateEl = document.getElementById('interp-date-display');
+  var propEl = document.getElementById('interp-property-type-display');
   var coopEl = document.getElementById('interp-coop-display');
   var yearEl = document.getElementById('interp-year-display');
   var sqftEl = document.getElementById('interp-sqft-display');
@@ -1054,6 +1055,7 @@ function renderInterpretInfo() {
   if (nameEl) nameEl.textContent = (typeof S !== 'undefined' && S.name) ? S.name : '—';
   if (addrEl) addrEl.textContent = (typeof S !== 'undefined' && S.address) ? S.address : '—';
   if (dateEl) dateEl.textContent = (typeof S !== 'undefined' && S.date) ? S.date : '—';
+  if (propEl) propEl.textContent = (typeof S !== 'undefined' && S.propertyType) ? S.propertyType : '—';
   if (coopEl) coopEl.textContent = (typeof S !== 'undefined' && S.coop) ? S.coop : '—';
   if (yearEl) yearEl.textContent = (typeof S !== 'undefined' && S.year) ? S.year : '—';
   if (sqftEl) sqftEl.textContent = (typeof S !== 'undefined' && S.sqft) ? S.sqft : '—';
@@ -1109,16 +1111,18 @@ function runInterpret() {
   var date = (typeof S !== 'undefined' && S.date) ? S.date : '';
   var year = (typeof S !== 'undefined' && S.year) ? S.year : '';
   var sqft = (typeof S !== 'undefined' && S.sqft) ? S.sqft : '';
+  var propertyType = (typeof S !== 'undefined' && S.propertyType) ? S.propertyType : '';
   var coop = (typeof S !== 'undefined' && S.coop) ? S.coop : '';
 
   var yearVal = year || 'Not provided — use Zillow lookup';
   var sqftVal = sqft || 'Not provided — use Zillow lookup';
+  var propVal = propertyType || 'Not provided';
   var coopVal = coop || 'Unknown';
 
   var prompt = 'You are the Audit Interpreter Agent for the CHESS energy efficiency program. Use the knowledge doc below to interpret the raw audit notes and output pre-filled JotForm field answers.\n\n' +
     'KNOWLEDGE DOC:\n' + getKnowledgeDoc() + '\n\n' +
     'CUSTOMER INFO:\nName: ' + name + '\nAddress: ' + address + '\nDate: ' + date +
-    '\nYear Built: ' + yearVal + '\nConditioned Sq Ft: ' + sqftVal + '\nCo-op: ' + coopVal + '\n\n' +
+    '\nProperty Type: ' + propVal + '\nYear Built: ' + yearVal + '\nConditioned Sq Ft: ' + sqftVal + '\nCo-op: ' + coopVal + '\n\n' +
     'RAW AUDIT NOTES:\n' + dump + '\n\n' +
     'OUTPUT FORMAT:\nReturn a JSON object with this exact structure:\n' +
     '{\n  "fields": [\n    { "page": "Page 1", "section": "Intake", "field": "Member Name - First Name", "value": "..." }\n  ],\n' +
