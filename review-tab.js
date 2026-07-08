@@ -201,6 +201,7 @@ function sendAuditToProcessing() {
 
   if (typeof renderHeader === 'function') renderHeader();
   if (typeof renderInterpretQueue === 'function') renderInterpretQueue();
+  if (typeof renderInterpretInfo === 'function') renderInterpretInfo();
   if (typeof renderReviewTab === 'function') renderReviewTab();
   toast('Audit sent to Interpret queue.');
   if (typeof switchMainTab === 'function') switchMainTab('processing', 'interpret');

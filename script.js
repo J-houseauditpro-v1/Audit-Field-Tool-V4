@@ -689,7 +689,10 @@ function isVoiceSubActive() {
 
 function runSubTabInit(main, sub) {
   if (main === 'jobs' && typeof initCustomersTab === 'function') initCustomersTab();
-  if (main === 'audit' && sub === 'voice' && typeof renderPhotoNotesSummary === 'function') renderPhotoNotesSummary();
+  if (main === 'audit' && sub === 'voice') {
+    if (typeof fillFields === 'function') fillFields();
+    if (typeof renderPhotoNotesSummary === 'function') renderPhotoNotesSummary();
+  }
   if (main === 'audit' && sub === 'tc' && typeof renderTCInfo === 'function') renderTCInfo();
   if (main === 'audit' && sub === 'photos') positionPhotoStickyControls();
   if (main === 'audit' && sub === 'review' && typeof initReviewTab === 'function') initReviewTab();
@@ -847,9 +850,9 @@ var AFT_COOPS = [
   'Woodruff Electric'
 ];
 
-function populateAftSelect(selectEl, options, placeholder) {
+function populateAftSelect(selectEl, options, placeholder, fallbackValue) {
   if (!selectEl || selectEl.dataset.aftPopulated === '1') return;
-  var prev = selectEl.value;
+  var prev = selectEl.value || fallbackValue || '';
   selectEl.dataset.aftPopulated = '1';
   selectEl.innerHTML = '';
   var ph = document.createElement('option');
@@ -884,11 +887,15 @@ function initAftSharedSelects() {
   var coopSelects = ['f-coop', 'review-f-coop', 'schedule-add-coop'];
   propertySelects.forEach(function(id) {
     var el = document.getElementById(id);
-    if (el) populateAftSelect(el, AFT_PROPERTY_TYPES, 'Select property type...');
+    var fallback = '';
+    if (id !== 'schedule-add-property-type' && typeof S !== 'undefined') fallback = S.propertyType || '';
+    if (el) populateAftSelect(el, AFT_PROPERTY_TYPES, 'Select property type...', fallback);
   });
   coopSelects.forEach(function(id) {
     var el = document.getElementById(id);
-    if (el) populateAftSelect(el, AFT_COOPS, 'Select Co-op...');
+    var fallback = '';
+    if (id !== 'schedule-add-coop' && typeof S !== 'undefined') fallback = S.coop || '';
+    if (el) populateAftSelect(el, AFT_COOPS, 'Select Co-op...', fallback);
   });
   document.querySelectorAll('select.field').forEach(bindSelectPlaceholder);
 }
@@ -949,6 +956,7 @@ function initCustomerFields() {
     });
   });
   document.querySelectorAll('.date-field').forEach(bindDateFieldPlaceholder);
+  fillFields();
 }
 
 function resetCurrentAudit() {

@@ -1039,6 +1039,15 @@ function initInterpretTab() {
   }
 }
 
+function getInterpretDisplayValue(stateKey, customerKey) {
+  if (typeof S === 'undefined') return '';
+  if (S[stateKey]) return S[stateKey];
+  if (!S.auditId || typeof getSaved !== 'function') return '';
+  var rec = getSaved().find(function(a) { return a.id === S.auditId; });
+  if (!rec || !rec.customer) return '';
+  return rec.customer[customerKey] || '';
+}
+
 function renderInterpretInfo() {
   var nameEl = document.getElementById('interp-name-display');
   var addrEl = document.getElementById('interp-address-display');
@@ -1052,13 +1061,21 @@ function renderInterpretInfo() {
   var noKeyEl = document.getElementById('interp-no-key-warn');
   var noDumpEl = document.getElementById('interp-no-dump-warn');
 
-  if (nameEl) nameEl.textContent = (typeof S !== 'undefined' && S.name) ? S.name : '—';
-  if (addrEl) addrEl.textContent = (typeof S !== 'undefined' && S.address) ? S.address : '—';
-  if (dateEl) dateEl.textContent = (typeof S !== 'undefined' && S.date) ? S.date : '—';
-  if (propEl) propEl.textContent = (typeof S !== 'undefined' && S.propertyType) ? S.propertyType : '—';
-  if (coopEl) coopEl.textContent = (typeof S !== 'undefined' && S.coop) ? S.coop : '—';
-  if (yearEl) yearEl.textContent = (typeof S !== 'undefined' && S.year) ? S.year : '—';
-  if (sqftEl) sqftEl.textContent = (typeof S !== 'undefined' && S.sqft) ? S.sqft : '—';
+  var name = getInterpretDisplayValue('name', 'name');
+  var address = getInterpretDisplayValue('address', 'address');
+  var date = getInterpretDisplayValue('date', 'date');
+  var propertyType = getInterpretDisplayValue('propertyType', 'propertyType');
+  var coop = getInterpretDisplayValue('coop', 'coop');
+  var year = getInterpretDisplayValue('year', 'yearBuilt');
+  var sqft = getInterpretDisplayValue('sqft', 'sqFt');
+
+  if (nameEl) nameEl.textContent = name || '—';
+  if (addrEl) addrEl.textContent = address || '—';
+  if (dateEl) dateEl.textContent = date || '—';
+  if (propEl) propEl.textContent = propertyType || '—';
+  if (coopEl) coopEl.textContent = coop || '—';
+  if (yearEl) yearEl.textContent = year || '—';
+  if (sqftEl) sqftEl.textContent = sqft || '—';
 
   if (dumpEl) {
     var dump = (typeof S !== 'undefined' && S.dump) ? S.dump.trim() : '';
